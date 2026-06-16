@@ -12,47 +12,134 @@
 ---
 
 **[NARRATION]**
-The gate is open.
+You don't remember the door.
 
-It has been open since before you arrived. The iron is warm to the touch — not from sun, there is no sun here — but from something underneath the metal, something patient and slow. The courtyard beyond is lit by candles in every window. Dozens of them. Hundreds. All burning at the same height.
+That is the first thing. You are inside — corridor, stone, candles burning at intervals along the wall — and there is no memory of crossing a threshold. No decision to enter. No moment of stepping through. Just: outside, and then not.
 
-Someone has been expecting company.
+The corridor behind you ends in a wall. Solid stone, no seam, no handle, no hinge. As if it was always a wall. As if there was never anything else.
 
 **[LYSANDRA]**
-I came this far. No door gets credit for opening.
+*→ She turns from the wall. Examines it once. Puts her hand flat against the stone.*
 
-*→ She steps through. The gate swings shut behind her. She does not look back.*
+*→ Nothing.*
+
+*→ She turns back to face the corridor ahead. The candles burn at the same height in both directions.*
+
+There's no going back through something that isn't there.
+
+*→ She moves forward. The first room opens ahead of her.*
 
 **[NARRATION]**
-The sound it makes is not a lock. It is something softer. A sigh, perhaps. Or a welcome.
+The Castle does not explain how you arrived. It doesn't need to. You are here, and here has only one direction.
+
+*→ First encounter loads: Hollow Servant.*
+
+---
+
+## SCENE: L1_MIRA_PREAMBLE
+**Trigger:** Player enters the Butler's Corridor room. Butler encounter has not yet fired.
+**Speaker:** NARRATION
+
+---
+
+**[NARRATION]**
+The corridor opens into a wider service room — shelves along the walls, a long table, doorways to the kitchen beyond. A woman is backed against the far shelves, a vial in each hand, circling a Corrupted Butler that is between her and every exit.
+
+She is not losing. She is managing. There is a difference, and she knows it.
+
+She hasn't seen you yet.
+
+*→ Choice prompt displays.*
+
+**[CHOICE A — Help]**
+> *Step in.*
+
+**[CHOICE B — Watch]**
+> *Wait. See how she handles it.*
+
+*→ Flag trigger on choice:*
+- Help: `l1_mira_choice_helped` → "1" (run_state)
+- Watch: `l1_mira_choice_watched` → "1" (run_state)
+
+---
+
+## SCENE: L1_MIRA_HELP_PATH
+**Trigger:** Player chose Help. Battle starts immediately with Lysandra joining.
+**Speakers:** MIRA, NARRATION (mid-combat line fires once during battle)
+
+---
+
+*→ Lysandra steps in. The Butler turns. Combat begins with both Lysandra and Mira against the Butler.*
+
+**[MIRA]**
+*→ Mid-combat, while fighting:*
+I can brag and fight at the same time — ask me how I know. Mira Voss, by the way. We can do introductions after.
+
+*→ Combat resolves. Butler down.*
+
+---
+
+## SCENE: L1_MIRA_WATCH_PATH
+**Trigger:** Player chose Watch. No combat yet — this plays out before the fight.
+**Speakers:** NARRATION, MIRA
+
+---
+
+**[NARRATION]**
+The Butler presses her into the shelf. She ducks — fast, practiced — comes up behind it, goes for the flank. She's good. She's also running out of vials.
+
+*→ The Butler catches her coat as she pivots. A sharp sound — fabric tearing.*
+
+*→ Mira freezes for exactly one second. Looks down.*
+
+**[MIRA]**
+*→ Flatly, to herself.*
+Absolutely not.
+
+*→ She turns and throws both remaining vials. The Butler goes down in a cloud of acrid smoke, choking.*
+
+*→ She stands very still for a moment, then reaches back to confirm what she already knows.*
+
+**[MIRA]**
+*→ Under her breath, with great feeling.*
+Perfect.
+
+*→ She notices Lysandra in the doorway.*
+
+**[MIRA]**
+*→ A beat. Then, with complete composure:*
+You've been there the whole time.
+
+*→ It is not a question.*
+
+*→ Combat fires now — Butler still standing, weakened.*
 
 ---
 
 ## SCENE: L1_MIRA_RECRUITMENT
-**Trigger:** Player enters the Butler's Corridor room. Encounter with Corrupted Butler fires first. After combat resolves —
+**Trigger:** Butler is defeated (either path). Recruitment dialogue.
 **Speakers:** NARRATION, MIRA, LYSANDRA
 
 ---
 
 **[NARRATION]**
-The butler is on the floor. Whatever it was before the Castle found it, it is quiet now — folded into stillness, hands arranged neatly at its sides as if it lay down by choice.
+The butler is on the floor. Whatever it was before the Castle found it, it is quiet now.
 
-The woman by the far wall lowers her arm.
+*→ [HELP PATH only:]*
+The woman catches her breath. She looks at you — not with gratitude, exactly. With assessment.
 
-She is not surprised to see you. She is assessing you, which is different.
+*→ [WATCH PATH only:]*
+The woman does not look at you immediately. She looks at the butler, then at the ceiling, then at you. She has made a decision about something.
+
+---
 
 **[MIRA]**
-You are either very brave or very lost. In this place, I suppose both count as qualifications.
-
-*→ She straightens. Three vials at her belt, two already used. She notes where your eyes go.*
-
-**[MIRA]**
-Mira Voss. I've been inside for six days, I think. The light doesn't change here, which I have decided to find professionally irritating rather than personally alarming.
+Mira Voss. Six days inside, I think — the light doesn't change, which I have decided to find professionally irritating rather than personally alarming.
 
 *→ She crosses the room without being invited. Examines the corridor ahead.*
 
 **[MIRA]**
-You're going deeper. I can tell because you're moving like someone with a destination rather than someone who's lost their nerve. I'll come with you.
+You're going deeper. I'll come with you.
 
 **[LYSANDRA]**
 I didn't offer.
@@ -60,15 +147,73 @@ I didn't offer.
 **[MIRA]**
 No. I'm telling you my decision. That's different from asking permission.
 
-*→ Beat.*
-
+*→ [HELP PATH only — LYSANDRA:]*
 **[LYSANDRA]**
 Can you keep up?
 
 **[MIRA]**
-I've survived six days alone in a Castle that rearranges itself when you're not looking. I'll manage.
+Six days alone in a place that rearranges itself. I'll manage.
+
+*→ [WATCH PATH only — beat of silence. Mira doesn't ask. Lysandra doesn't offer. They both know.]*
 
 *→ Flag trigger: `mira_recruited` → "1" (run_state)*
+
+---
+
+## SCENE: L1_TRAP_ROOM
+**Trigger:** Next scripted room after Mira recruitment. Outcome branches on `l1_mira_choice_helped` / `l1_mira_choice_watched`.
+**Speakers:** NARRATION, MIRA
+
+---
+
+**[NARRATION]**
+The next corridor is longer than the others. Halfway down, the floor changes texture — slightly too smooth, the stone fitted differently. Something underneath.
+
+*→ [HELP PATH — Mira warns:]*
+
+**[MIRA]**
+*→ She stops. Studies the floor without touching it.*
+Middle section. Pressure plate, I'd guess — the grout lines are wrong. Go along the left wall.
+
+*→ Lysandra goes left. Nothing happens. They continue.*
+
+**[MIRA]**
+*→ Almost to herself:*
+You saved me a vial back there. Fair's fair.
+
+---
+
+*→ [WATCH PATH — Mira stays quiet:]*
+
+**[NARRATION]**
+Mira says nothing. She walks slightly behind Lysandra, to the left, close to the wall.
+
+*→ Lysandra hits the centre of the corridor.*
+
+*→ The floor panel drops. Tentacles — thin, pale, deeply wrong — come up from the gap, wrap around her ankles, her wrists. A lesser trap, not designed to hold long, but designed to hold.*
+
+*→ Combat encounter: Lesser Tentacle Trap [weakened enemy, short fight].*
+
+*→ After combat resolves — Lysandra pulls free. Trap retracts.*
+
+**[MIRA]**
+*→ From the wall, where she has been standing perfectly safe.*
+I noticed it about four steps back, actually.
+
+*→ A beat.*
+
+**[MIRA]**
+Eye for an eye, right? We're good now.
+
+*→ She walks past. She pats Lysandra once on the shoulder as she goes.*
+
+**[LYSANDRA]**
+*→ After a moment.*
+We are absolutely not good.
+
+**[MIRA]**
+*→ Already ahead, not looking back.*
+Give it a room or two.
 
 ---
 
@@ -270,13 +415,19 @@ The descending passage is warm. The stone is smooth, the kind of smooth that com
 
 ## NOTES FOR WIRING
 
+**Opening scene:** Lysandra does not enter voluntarily. No gate, no threshold crossed. She is simply inside with no memory of arrival. The wall behind her is solid. Only direction is forward. First encounter after the opening monologue is a Hollow Servant — no scripted preamble, straight into combat.
+
+**Mira recruitment choice (`l1_mira_choice_helped` / `l1_mira_choice_watched`):** Fires as a modal before the Butler combat. Both paths resolve into the same recruitment dialogue but with different pre-text and different mid-scene tone. The Watch path delays combat until after the wardrobe malfunction beat. Both flags are `run_state` scope.
+
+**Trap room:** Is a fixed scripted room, always present, always the next room after Mira recruitment. The outcome branches purely on which flag is set — Mira warns (Help) or Mira watches Lysandra get caught (Watch). The Watch path fires a combat encounter (Lesser Tentacle Trap, weakened stats). The Help path has no combat. Both paths converge after the room.
+
+**Mira's Watch path reconciliation:** "Eye for an eye, right? We're good now." / "We are absolutely not good." / "Give it a room or two." — this exchange is the full close of the bit. No further flag needed; the relationship tension is character texture, not a tracked state.
+
 **Heroine lock logic:**
-- L1_MIRA_RECRUITMENT: always fires (Mira always found in Butler's Corridor, Layer 1).
-- L1_SERAPHINE_RECRUITMENT: always fires (Seraphine always found in Ruined Chapel, Layer 1).
+- L1_MIRA scenes: always fire (Mira always found Layer 1).
+- L1_SERAPHINE scenes: always fire (Seraphine always found Layer 1).
 - Optional post-boss lines: check active heroine ID, display matching line only.
 
-**Scene triggers all use `run_state` scope** — they clear on run end. If persistent knowledge of "I met Mira in the butler's corridor" is needed for later dialogue, set a separate `save_slot` flag at recruitment.
+**Blood Nun phase 2 trigger:** HP-threshold below 50%, same pattern as Decision X in master reference.
 
-**Blood Nun phase 2 trigger:** Fires from CombatManager's `OnPhaseTransition` or equivalent — the same HP-threshold check already implemented (Decision X in master reference: below 50%, `_bloodNunHealedPhase2` reset in StartEncounter).
-
-**Post-boss choice:** This is a `RoomEventSO` modal, not a hotspot. Wire to `EventUI` using the same choice/outcome pattern as existing events. Flag effects applied on choice selection before scene transition.
+**Post-boss choice:** Wire to `EventUI` as a `RoomEventSO` modal. Flag effects applied on choice selection before scene transition.
