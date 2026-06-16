@@ -71,10 +71,12 @@ Thread seeds: Layer 1 (Servant Ledger — names crossed out, almost all male) �
 **Emotional tone:** Bureaucratic horror. Domestic uncanny. Ritual without purpose.
 **Visual:** Cursed domestic space — servant halls, kitchens, storage rooms, abandoned bedrooms, chapel wings, butler offices, service corridors. Everything recently abandoned. Table still set. Candles still burning. Bells still ring. Servants are wrong (faceless maids still folding sheets; butlers offering tea from empty trays).
 
-**Opening — Lysandra alone. First line (LOCKED):**
-> *"I came this far. No door gets credit for opening."*
+**Opening — Lysandra alone. (LOCKED):**
+Lysandra does not enter voluntarily. No gate, no threshold crossed. She is simply inside with no memory of arrival. The wall behind her is solid. Only direction is forward.
 
-She enters by choice. She is not an innocent victim. She came seeking something.
+Her first line is not spoken aloud — it is internal, and it is not given to the player. The player sees only the corridor and moves forward. First encounter is a Hollow Servant — no scripted preamble, straight into combat.
+
+The line *"I came this far. No door gets credit for opening."* is **retired** — it implies a voluntary crossing that does not happen in the game.
 
 **Mira's arrival:** Found fighting a Corrupted Butler. Trapped but not helpless. Joins after battle.
 **Mira's first line to Lysandra (LOCKED):**
