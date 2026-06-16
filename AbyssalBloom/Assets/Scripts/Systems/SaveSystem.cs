@@ -24,6 +24,10 @@ public class RunSaveData
     public string[] partyIds = new string[3];
 
     // Current room / layer progress
+    // Run seed (for deterministic map regeneration on resume)
+    public int runSeed;
+
+    // Current room / layer progress
     public int currentLayer = 1;
     public string currentRoomId;
 
@@ -117,6 +121,16 @@ public static class SaveSystem
             Debug.LogError($"[SaveSystem] LoadRun failed: {e.Message}");
             return null;
         }
+    }
+
+
+    // ── Convenience load (called by GameBootstrap on startup) ─────────────
+    // Loads meta first (persistent knowledge), then the active run slot.
+    // Slot 0 is the only slot in the current single-slot design.
+    public static RunSaveData Load(int slotIndex = 0)
+    {
+        LoadMeta();
+        return LoadRun(slotIndex);
     }
 
     // ── Delete run (on party wipe / new run) ───────────────────────────────

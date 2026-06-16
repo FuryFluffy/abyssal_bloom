@@ -6,7 +6,7 @@ using UnityEngine;
 // Listens to CombatManager.OnEncounterEnd and drives the room system.
 //
 // Attach to the same _Managers GameObject as CombatManager and RoomManager.
-// Wire both references in the Inspector.
+// Wire all references in the Inspector.
 // ════════════════════════════════════════════════════════════════════════════
 
 public class CombatRoomBridge : MonoBehaviour
@@ -14,6 +14,13 @@ public class CombatRoomBridge : MonoBehaviour
     [Header("References")]
     public CombatManager combatManager;
     public RoomManager   roomManager;
+    public SaveTrigger   saveTrigger;
+
+    [Header("UI Panels")]
+    [Tooltip("Shown after a run ends (wipe). Hide combat/map, show refuge.")]
+    public GameObject refugePanel;
+    public GameObject combatPanel;
+    public GameObject mapPanel;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────
 
@@ -31,17 +38,26 @@ public class CombatRoomBridge : MonoBehaviour
 
     // ── Handler ────────────────────────────────────────────────────────────
 
-    private void HandleEncounterEnd(bool victory)
+    private void HandleEncounterEnd(EncounterResult result)
     {
-        if (victory)
-            HandleVictory();
-        else
-            HandleDefeat();
+        switch (result)
+        {
+            case EncounterResult.Victory:
+                HandleVictory();
+                break;
+            case EncounterResult.Fled:
+                HandleFled();
+                break;
+            case EncounterResult.Defeated:
+                HandleDefeat();
+                break;
+        }
     }
 
     private void HandleVictory()
     {
-        FlagManager.Instance?.SetFlag(FlagManager.Scope.RunState, "last_combat_result", "victory");
+        FlagManager.Instance?.SetFlag(
+            FlagManager.Scope.RunState, "last_combat_result", "victory");
 
         var room = roomManager?.CurrentRoom;
         if (room != null)
@@ -52,12 +68,35 @@ public class CombatRoomBridge : MonoBehaviour
         }
 
         roomManager?.CompleteRoom(room);
+        // SaveTrigger.OnRoomCompleted fires automatically via RoomManager event
+    }
+
+    private void HandleFled()
+    {
+        FlagManager.Instance?.SetFlag(
+            FlagManager.Scope.RunState, "last_combat_result", "fled");
+
+        // Mark the room completed so the player can move on, but grant no Bloom.
+        var room = roomManager?.CurrentRoom;
+        roomManager?.CompleteRoom(room);
+        // SaveTrigger.OnRoomCompleted fires automatically via RoomManager event
     }
 
     private void HandleDefeat()
     {
-        FlagManager.Instance?.SetFlag(FlagManager.Scope.RunState, "last_combat_result", "defeat");
+        FlagManager.Instance?.SetFlag(
+            FlagManager.Scope.RunState, "last_combat_result", "defeat");
+
+        // FIX 1: End the run properly — delete save file, save meta,
+        // call ReturnToRefuge so RefugeManager initialises correctly.
         roomManager?.HandleRunEnd();
+        saveTrigger?.DeleteRunAndSaveMeta();
+        RunStateManager.Instance?.ReturnToRefuge();
+
+        // Switch panels: hide combat and map, show refuge
+        if (combatPanel != null) combatPanel.SetActive(false);
+        if (mapPanel    != null) mapPanel.SetActive(false);
+        if (refugePanel != null) refugePanel.SetActive(true);
     }
 
     // ── Bloom lookup ───────────────────────────────────────────────────────

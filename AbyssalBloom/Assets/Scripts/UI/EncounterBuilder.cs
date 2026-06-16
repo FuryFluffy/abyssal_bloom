@@ -158,12 +158,12 @@ public class EncounterBuilder : MonoBehaviour
                 resolve      = 0,
                 maxCorruption = 0,  // enemies have no Corruption track
                 corruption   = 0,
-                ATK          = data.FinalATK,
-                MAG          = data.FinalMAG,
-                DEF          = data.FinalDEF,
-                RES          = data.FinalRES,
-                SPD          = data.FinalSPD,
             };
+            state.BaseATK = data.FinalATK;
+            state.BaseMAG = data.FinalMAG;
+            state.BaseDEF = data.FinalDEF;
+            state.BaseRES = data.FinalRES;
+            state.BaseSPD = data.FinalSPD;
 
             state.abilities = new List<CharacterAbilitySO>();
             if (enemyAbilities != null && i < enemyAbilities.Length

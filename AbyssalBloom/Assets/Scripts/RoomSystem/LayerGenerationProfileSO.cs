@@ -65,6 +65,17 @@ public class LayerGenerationProfileSO : ScriptableObject
     [Tooltip("Drag the EncounterPoolSO for this layer here.")]
     public EncounterPoolSO encounterPool;
 
+    // ── Room Templates ─────────────────────────────────────────────────────
+
+    [Header("Room Templates")]
+    [Tooltip(
+        "All RoomTemplateSOs available for this layer. " +
+        "LayerGenerator picks a matching template for each non-combat room " +
+        "based on the room's RoomType. If multiple templates match, one is " +
+        "chosen at random. If none match, the node gets no template " +
+        "(hotspots will not spawn — add a matching template to fix).")]
+    public RoomTemplateSO[] roomTemplates;
+
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     /// <summary>
@@ -90,5 +101,23 @@ public class LayerGenerationProfileSO : ScriptableObject
         running += weightKeyMechanism; if (roll < running) return RoomType.KeyMechanism;
 
         return RoomType.Battle;
+    }
+
+    /// <summary>
+    /// Returns a random RoomTemplateSO that supports the given RoomType,
+    /// or null if no matching template exists in this profile.
+    /// </summary>
+    public RoomTemplateSO PickTemplate(RoomType type, System.Random rng)
+    {
+        if (roomTemplates == null || roomTemplates.Length == 0) return null;
+
+        // Gather all matching templates
+        var matches = new System.Collections.Generic.List<RoomTemplateSO>();
+        foreach (var t in roomTemplates)
+            if (t != null && t.SupportsRoomType(type))
+                matches.Add(t);
+
+        if (matches.Count == 0) return null;
+        return matches[rng.Next(0, matches.Count)];
     }
 }

@@ -95,7 +95,18 @@ public static class LayerGenerator
         // 8. Populate encounter data for combat rooms
         PopulateEncounters(allNodes, profile.encounterPool, rng);
 
-        // 9. Mark start nodes as accessible
+        // 8b. Assign room templates to non-combat rooms
+        // Template defines: background sprite + anchor positions + fixed hotspots.
+        // Must run before PopulateHotspots so anchors are set when pools are drawn.
+        AssignRoomTemplates(allNodes, profile, rng);
+
+        // 9. Populate hotspots for non-combat rooms
+        // Each room's spawnedHotspots are rolled once here and never changed again.
+        // The same seed always produces the same hotspots for the same room instance.
+        // RoomManager.EnterRoom() reads spawnedHotspots directly — it does NOT regenerate.
+        PopulateHotspots(allNodes, seed);
+
+        // 10. Mark start nodes as accessible
         foreach (var s in startNodes)
             s.isAccessible = true;
 
@@ -241,6 +252,40 @@ public static class LayerGenerator
         }
     }
 
+    // ── Room template assignment ──────────────────────────────────────────
+    //
+    // Assigns a RoomTemplateSO to each non-combat room from the profile's
+    // roomTemplates array. Copies anchor definitions and fixed hotspots
+    // directly into the RoomNode so PopulateHotspots can read them.
+    // If no matching template exists the node gets no anchors (hotspots
+    // will not spawn — add a matching template to the profile to fix).
+
+    private static void AssignRoomTemplates(List<RoomNode> allNodes,
+                                             LayerGenerationProfileSO profile,
+                                             System.Random rng)
+    {
+        if (profile.roomTemplates == null || profile.roomTemplates.Length == 0)
+        {
+            Debug.LogWarning("[LayerGenerator] No room templates in profile — non-combat rooms will have no hotspots.");
+            return;
+        }
+
+        foreach (var node in allNodes)
+        {
+            if (node.IsCombatRoom) continue;
+
+            var template = profile.PickTemplate(node.roomType, rng);
+            if (template == null)
+            {
+                Debug.LogWarning($"[LayerGenerator] No template for RoomType.{node.roomType} in layer {profile.layerNumber}. Node {node.nodeId} will have no hotspots.");
+                continue;
+            }
+
+            node.hotspotAnchors = template.BuildAnchors();
+            node.fixedHotspots  = template.fixedHotspots;
+        }
+    }
+
     // ── Encounter population ───────────────────────────────────────────────
 
     private static void PopulateEncounters(List<RoomNode> allNodes,
@@ -294,6 +339,82 @@ public static class LayerGenerator
         return result;
     }
 
+    // ── Hotspot population ─────────────────────────────────────────────────
+    // Mirrors PopulateEncounters: called once during Generate(), writes
+    // directly into RoomNode.spawnedHotspots, never touched again.
+    //
+    // Seed per room = layerSeed XOR nodeId.GetHashCode()
+    // This ensures each room has its own independent RNG sequence while
+    // remaining fully deterministic from the layer seed alone.
+
+    private static void PopulateHotspots(List<RoomNode> allNodes, int layerSeed)
+    {
+        foreach (var node in allNodes)
+        {
+            // Combat rooms and boss rooms don't use hotspots
+            if (node.IsCombatRoom) continue;
+
+            // No anchors and no fixed hotspots — nothing to do
+            bool hasAnchors = node.hotspotAnchors != null && node.hotspotAnchors.Length > 0;
+            bool hasFixed   = node.fixedHotspots  != null && node.fixedHotspots.Length  > 0;
+            if (!hasAnchors && !hasFixed) continue;
+
+            // Per-room seed: XOR layer seed with nodeId hashcode
+            int roomSeed = layerSeed ^ (node.nodeId?.GetHashCode() ?? 0);
+            var rng = new System.Random(roomSeed);
+
+            var generated = new List<RoomHotspotSO>();
+
+            // Fixed hotspots always appear first (typically the exit door)
+            if (hasFixed)
+                generated.AddRange(node.fixedHotspots);
+
+            // Draw from each anchor's pool
+            if (hasAnchors)
+            {
+                foreach (var anchor in node.hotspotAnchors)
+                {
+                    if (anchor?.pool == null) continue;
+                    var picked = PickFromHotspotPool(anchor.pool, rng);
+                    generated.AddRange(picked);
+                }
+            }
+
+            node.spawnedHotspots = generated.ToArray();
+        }
+    }
+
+    /// <summary>
+    /// Fisher-Yates shuffle then take the first pickCount entries.
+    /// Respects pool.allowDuplicates — if false, clamps to pool size.
+    /// </summary>
+    private static RoomHotspotSO[] PickFromHotspotPool(RoomHotspotPoolSO pool, System.Random rng)
+    {
+        if (pool.hotspotVariants == null || pool.hotspotVariants.Length == 0)
+            return Array.Empty<RoomHotspotSO>();
+
+        // Shallow copy to shuffle without mutating the SO asset
+        var shuffled = new RoomHotspotSO[pool.hotspotVariants.Length];
+        Array.Copy(pool.hotspotVariants, shuffled, pool.hotspotVariants.Length);
+
+        // Fisher-Yates
+        for (int i = shuffled.Length - 1; i > 0; i--)
+        {
+            int j    = rng.Next(i + 1);
+            var temp = shuffled[i];
+            shuffled[i] = shuffled[j];
+            shuffled[j] = temp;
+        }
+
+        int count = pool.allowDuplicates
+            ? pool.pickCount
+            : Mathf.Min(pool.pickCount, shuffled.Length);
+
+        var result = new RoomHotspotSO[count];
+        Array.Copy(shuffled, result, count);
+        return result;
+    }
+
     // ── Seed derivation helper ─────────────────────────────────────────────
 
     /// <summary>
@@ -306,7 +427,7 @@ public static class LayerGenerator
         unchecked
         {
             int h = runSeed;
-            h = h * 2654435761 + layerNumber * 2246822519;
+            h = h * (int)2654435761 + layerNumber * (int)2246822519;
             h ^= h >> 16;
             return h;
         }

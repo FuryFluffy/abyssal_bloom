@@ -43,6 +43,8 @@ public enum ActionType
     Intervene, Watch, Encourage
 }
 
+public enum EncounterResult { Victory, Fled, Defeated }
+
 // ── Action data submitted by UI ────────────────────────────────────────────
 
 [System.Serializable]
@@ -51,7 +53,8 @@ public struct CombatAction
     public ActionType             type;
     public RuntimeCharacterState  actor;
     public RuntimeCharacterState  target;   // null for some actions
-    public CharacterAbilitySO     ability;  // only for ActionType.Skill
+    public CharacterAbilitySO     ability;  // only for ActionType.Skill / AssistAbility
+    public ItemSO                 item;     // only for ActionType.UseItem
 }
 
 // ── CombatManager ──────────────────────────────────────────────────────────
@@ -125,7 +128,7 @@ public class CombatManager : MonoBehaviour
     public event Action<RuntimeCharacterState, int>                       OnClimaxRecoil;
     public event Action<string, RuntimeCharacterState>                    OnPassiveTriggered; // passiveId, source
     public event Action<RuntimeCharacterState, bool>                      OnStruggleAttempt;  // bool = escaped
-    public event Action<bool>                                             OnEncounterEnd;     // true = victory
+    public event Action<EncounterResult>                                  OnEncounterEnd;
     public event Action<RuntimeCharacterState>                            OnDotTick;
     public event Action<int>                                              OnRoundStarted;
     public event Action                                                   OnActionMiss;
@@ -356,7 +359,7 @@ public class CombatManager : MonoBehaviour
         if (!enemiesAlive)
         {
             _phase = CombatPhase.EncounterWon;
-            OnEncounterEnd?.Invoke(true);
+            OnEncounterEnd?.Invoke(EncounterResult.Victory);
             return true;
         }
 
@@ -368,7 +371,7 @@ public class CombatManager : MonoBehaviour
         if (!heroinesAlive)
         {
             _phase = CombatPhase.EncounterLost;
-            OnEncounterEnd?.Invoke(false);
+            OnEncounterEnd?.Invoke(EncounterResult.Defeated);
             return true;
         }
 
@@ -454,8 +457,7 @@ public class CombatManager : MonoBehaviour
                 break;
 
             case ActionType.Run:
-                // TODO: Flee logic (not yet designed). For now, always fails.
-                Debug.Log("[CombatManager] Run attempted — not yet implemented.");
+                ResolveRun(action.actor);
                 break;
 
             // ── Support heroine normal combat ──────────────────────────
@@ -500,9 +502,78 @@ public class CombatManager : MonoBehaviour
 
             // ── Shared ─────────────────────────────────────────────────
             case ActionType.UseItem:
-                // TODO: Item system not yet designed.
-                Debug.Log("[CombatManager] UseItem — not yet implemented.");
+                ResolveUseItem(action);
                 break;
+        }
+    }
+
+    private void ResolveUseItem(CombatAction action)
+    {
+        if (action.item == null)
+        {
+            Debug.LogWarning("[CombatManager] UseItem: action.item is null.");
+            return;
+        }
+
+        switch (action.item.target)
+        {
+            case ItemTarget.AllAllies:
+                // ItemManager.UseItem requires a concrete target — broadcast to each living heroine.
+                foreach (var h in _heroines)
+                {
+                    if (h.IsAlive)
+                        ItemManager.Instance.UseItem(action.item, h);
+                }
+                break;
+
+            case ItemTarget.AllEnemies:
+                // Broadcast to each living enemy.
+                // NOTE: UseItem removes the item after the first call if it is a Consumable.
+                // AllEnemies consumables are therefore expected to be non-consumable CombatTools
+                // or the designer must be aware only the first enemy call triggers removal.
+                // TODO: add a multi-target variant to ItemManager when AllEnemies consumables are designed.
+                foreach (var e in _enemies)
+                {
+                    if (e.IsAlive)
+                        ItemManager.Instance.UseItem(action.item, e);
+                }
+                break;
+
+            default:
+                // Self, SingleAlly, SingleEnemy — target already resolved by CombatUI.
+                if (action.target != null)
+                    ItemManager.Instance.UseItem(action.item, action.target);
+                else
+                    Debug.LogWarning($"[CombatManager] UseItem: null target for item '{action.item.displayName}' with target type {action.item.target}.");
+                break;
+        }
+    }
+
+    // ── Flee ───────────────────────────────────────────────────────────────
+
+    private void ResolveRun(RuntimeCharacterState actor)
+    {
+        // Flee chance: base 30%, modified by active heroine SPD vs total enemy SPD.
+        // Clamped to [10, 70] — never trivial, never impossible.
+        int totalEnemySPD = 0;
+        foreach (var e in _enemies)
+            if (e.IsAlive) totalEnemySPD += e.SPD;
+
+        int fleeChance = Mathf.Clamp(
+            30 + (actor.SPD - totalEnemySPD) * 2,
+            10, 70);
+
+        bool fled = CombatFormulas.RollHit(fleeChance);
+
+        if (fled)
+        {
+            _phase = CombatPhase.EncounterWon;   // stops turn loop
+            OnEncounterEnd?.Invoke(EncounterResult.Fled);
+        }
+        else
+        {
+            // Failed flee — log it, turn ends normally
+            Debug.Log($"[CombatManager] Flee failed (chance was {fleeChance}%).");
         }
     }
 
@@ -524,6 +595,29 @@ public class CombatManager : MonoBehaviour
         }
 
         int damage = CombatFormulas.PhysicalDamage(attacker.ATK, power, target.DEF);
+        if (target.isDefending) damage = Mathf.RoundToInt(damage * CombatFormulas.DefendDamageMultiplier);
+
+        ApplyDamage(attacker, target, damage);
+    }
+
+    // ── Assist Attack ──────────────────────────────────────────────────────
+
+    private void ResolveAssistAttack(
+        RuntimeCharacterState attacker, RuntimeCharacterState target)
+    {
+        if (target == null || !target.IsAlive) return;
+
+        float power = CombatFormulas.PowerMultiplier(PowerBand.Low);
+        int hitChance = CombatFormulas.HitChance(
+            CombatFormulas.UniversalAttackBaseHit, attacker.SPD, target.SPD);
+
+        if (!CombatFormulas.RollHit(hitChance))
+        {
+            OnActionMiss?.Invoke();
+            return;
+        }
+
+        int damage = CombatFormulas.PhysicalDamage(attacker.ATK, power, target.DEF);
         ApplyDamage(attacker, target, damage);
     }
 
@@ -534,539 +628,290 @@ public class CombatManager : MonoBehaviour
         RuntimeCharacterState target,
         CharacterAbilitySO ability)
     {
-        // MP check
         if (actor.currentMP < ability.mpCost)
         {
-            Debug.LogWarning($"[CombatManager] {actor.displayName} lacks MP for {ability.displayName}.");
+            Debug.Log($"[CombatManager] {actor.displayName} can't afford {ability.displayName} ({ability.mpCost} MP).");
             return;
         }
+
         actor.SpendMP(ability.mpCost);
 
         switch (ability.abilityType)
         {
             case CharacterAbilitySO.AbilityType.Physical:
-                ResolvePhysicalAbility(actor, target, ability);
-                break;
-
-            case CharacterAbilitySO.AbilityType.Magic:
-                ResolveMagicAbility(actor, target, ability);
+                ResolveOffensiveAbility(actor, target, ability);
                 break;
 
             case CharacterAbilitySO.AbilityType.Healing:
                 ResolveHealingAbility(actor, target, ability);
                 break;
 
-            case CharacterAbilitySO.AbilityType.ResolveAttack:
-                ResolveResolveAttack(actor, target, ability);
-                break;
-
-            case CharacterAbilitySO.AbilityType.CorruptionAttack:
-                ResolveCorruptionAttack(actor, target, ability);
-                break;
-
             case CharacterAbilitySO.AbilityType.Grapple:
                 ResolveGrappleAbility(actor, target, ability);
                 break;
 
-            case CharacterAbilitySO.AbilityType.Buff:
-                ResolveBuffAbility(actor, target, ability);
+            case CharacterAbilitySO.AbilityType.ResolveAttack:
+            case CharacterAbilitySO.AbilityType.CorruptionAttack:
+            case CharacterAbilitySO.AbilityType.Magic:
+                ResolveOffensiveAbility(actor, target, ability);
                 break;
         }
-
-        // Grapple initiation (physical/magic abilities can also start grapple)
-        if (ability.isGrappleInitiator && ability.abilityType != CharacterAbilitySO.AbilityType.Grapple
-            && target != null && target.isHeroine)
-        {
-            TryInitiateGrapple(actor, target);
-        }
     }
 
-    private void ResolvePhysicalAbility(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.IsAlive) return;
-
-        int hitChance = CombatFormulas.HitChance(
-            ability.baseHitChance, actor.SPD, target.SPD);
-
-        if (!CombatFormulas.RollHit(hitChance))
-        {
-            OnActionMiss?.Invoke();
-            return;
-        }
-
-        int damage = CombatFormulas.PhysicalDamage(actor.ATK, ability.Power, target.DEF);
-        ApplyDamage(actor, target, damage);
-
-        // Status application (MAG governs chance even for physical)
-        TryApplyAbilityStatus(actor, target, ability);
-    }
-
-    private void ResolveMagicAbility(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.IsAlive) return;
-
-        // Magic auto-hits
-        int damage = CombatFormulas.MagicDamage(actor.MAG, ability.Power, target.RES);
-        ApplyDamage(actor, target, damage);
-
-        TryApplyAbilityStatus(actor, target, ability);
-    }
-
-    private void ResolveHealingAbility(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        var healTarget = target ?? actor;
-        int amount = CombatFormulas.Healing(ability.baseHeal, actor.MAG, ability.Power);
-        healTarget.Heal(amount);
-        OnHealingDone?.Invoke(healTarget, amount);
-    }
-
-    private void ResolveResolveAttack(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.isHeroine) return;
-
-        // Magic-type resolve attacks auto-hit
-        int resolveDmg = CombatFormulas.ResolveDamage(
-            ability.baseResolveDamage, actor.MAG, target.RES);
-        target.LoseResolve(resolveDmg);
-        OnResolveLost?.Invoke(target, resolveDmg);
-
-        // Combined resolve+corruption abilities (e.g. Whisper of Doubt, Communion)
-        // also deal corruption in the same action if baseCorruptionGain is set.
-        if (ability.baseCorruptionGain > 0)
-        {
-            int corruptGain = CombatFormulas.CorruptionGain(
-                ability.baseCorruptionGain, target.RES);
-            target.GainCorruption(corruptGain);
-            OnCorruptionGained?.Invoke(target, corruptGain);
-        }
-
-        TryApplyAbilityStatus(actor, target, ability);
-    }
-
-    private void ResolveCorruptionAttack(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.isHeroine) return;
-
-        int corruptGain = CombatFormulas.CorruptionGain(
-            ability.baseCorruptionGain, target.RES);
-        target.GainCorruption(corruptGain);
-        OnCorruptionGained?.Invoke(target, corruptGain);
-    }
-
-    // ── Grapple Ability ────────────────────────────────────────────────────
-    // Rolls hit chance; on hit calls TryInitiateGrapple(). No HP damage.
-
-    private void ResolveGrappleAbility(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.IsAlive || !target.isHeroine) return;
-
-        int hitChance = CombatFormulas.HitChance(
-            ability.baseHitChance, actor.SPD, target.SPD);
-
-        if (!CombatFormulas.RollHit(hitChance))
-        {
-            OnActionMiss?.Invoke();
-            return;
-        }
-
-        TryInitiateGrapple(actor, target);
-    }
-
-    // ── Buff Ability ───────────────────────────────────────────────────────
-    // Applies a status effect to any target (ally enemy or heroine).
-    // statusBaseChance = 100 for guaranteed buffs.
-
-    private void ResolveBuffAbility(
-        RuntimeCharacterState actor, RuntimeCharacterState target,
-        CharacterAbilitySO ability)
-    {
-        if (target == null || !target.IsAlive) return;
-        if (ability.statusEffect == null) return;
-
-        // Buffs bypass Mira's Alchemist's Reflex — they're not debuffs.
-        // Apply directly without the Mira check.
-        bool applied = StatusEffectManager.Apply(
-            target, ability.statusEffect, actor, ability.statusDurationOverride);
-        OnStatusApplied?.Invoke(target, ability.statusEffect, !applied);
-    }
-
-    // ── Status application (with Mira passive check) ───────────────────────
-
-    private void TryApplyAbilityStatus(
+    private void ResolveOffensiveAbility(
         RuntimeCharacterState actor,
         RuntimeCharacterState target,
         CharacterAbilitySO ability)
     {
-        if (ability.statusEffect == null || ability.statusBaseChance <= 0) return;
-
-        int chance = CombatFormulas.StatusChance(
-            ability.statusBaseChance, actor.MAG, target.RES);
-
-        if (!CombatFormulas.RollStatus(chance)) return;
-
-        TryApplyStatus(target, ability.statusEffect, actor, ability.statusDurationOverride);
-    }
-
-    /// <summary>
-    /// Central status application — checks Mira's Alchemist's Reflex before
-    /// forwarding to StatusEffectManager.
-    /// </summary>
-    private void TryApplyStatus(
-        RuntimeCharacterState target,
-        StatusEffectSO statusDef,
-        RuntimeCharacterState source,
-        int durationOverride = -1)
-    {
-        // ── Mira's Alchemist's Reflex passive check ────────────────────
-        // Fires when a status is about to be applied to the Active heroine.
-        // Does NOT fire on Corruption gain (Corruption is a stat, not a status).
-        if (target == ActiveHeroine)
-        {
-            var mira = FindSupportHeroine("mira_voss");
-            if (mira != null && mira.IsAlive && mira.IsPassiveReady("alchemist_reflex"))
-            {
-                mira.StartPassiveCooldown("alchemist_reflex", 3);
-                OnPassiveTriggered?.Invoke("alchemist_reflex", mira);
-
-                if (UnityEngine.Random.value < 0.50f)
-                {
-                    // Negated!
-                    OnStatusApplied?.Invoke(target, statusDef, true);
-                    return;
-                }
-            }
-        }
-
-        bool applied = StatusEffectManager.Apply(
-            target, statusDef, source, durationOverride);
-        OnStatusApplied?.Invoke(target, statusDef, !applied);
-    }
-
-    // ── Assist Attack (Support heroine, Very Low power, free) ──────────────
-
-    private void ResolveAssistAttack(
-        RuntimeCharacterState actor, RuntimeCharacterState target)
-    {
         if (target == null || !target.IsAlive) return;
 
-        float power = CombatFormulas.PowerMultiplier(PowerBand.VeryLow);
+        int hitChance = CombatFormulas.HitChance(ability.baseHitChance, actor.SPD, target.SPD);
+        if (!CombatFormulas.RollHit(hitChance))
+        {
+            OnActionMiss?.Invoke();
+            return;
+        }
 
-        // Seraphine's assist is Magic type (Minor Smite); others are Physical.
-        // DECISION POINT: For now, detect by characterId. A cleaner approach
-        // is an assist-attack SO on each heroine — defer until roster expands.
-        if (actor.characterId == "seraphine")
+        float power = CombatFormulas.PowerMultiplier(ability.powerBand);
+
+        if (ability.abilityType == CharacterAbilitySO.AbilityType.Physical)
+        {
+            int damage = CombatFormulas.PhysicalDamage(actor.ATK, power, target.DEF);
+            if (target.isDefending) damage = Mathf.RoundToInt(damage * CombatFormulas.DefendDamageMultiplier);
+            ApplyDamage(actor, target, damage);
+        }
+        else if (ability.abilityType == CharacterAbilitySO.AbilityType.Magic)
         {
             int damage = CombatFormulas.MagicDamage(actor.MAG, power, target.RES);
             ApplyDamage(actor, target, damage);
         }
-        else
+
+        if (ability.baseResolveDamage != 0)
+            ApplyResolveDelta(target, -ability.baseResolveDamage);
+
+        if (ability.baseCorruptionGain != 0)
+            ApplyCorruptionDelta(target, ability.baseCorruptionGain);
+
+        ApplyAbilityStatuses(actor, target, ability);
+    }
+
+    private void ResolveHealingAbility(
+        RuntimeCharacterState actor,
+        RuntimeCharacterState target,
+        CharacterAbilitySO ability)
+    {
+        if (target == null) return;
+
+        int amount = CombatFormulas.Healing(ability.baseHeal, actor.MAG, CombatFormulas.PowerMultiplier(ability.powerBand));
+        target.Heal(amount);
+        OnHealingDone?.Invoke(target, amount);
+
+        ApplyAbilityStatuses(actor, target, ability);
+    }
+
+    private void ResolveBuffAbility(
+        RuntimeCharacterState actor,
+        RuntimeCharacterState target,
+        CharacterAbilitySO ability)
+    {
+        if (target == null) return;
+        ApplyAbilityStatuses(actor, target, ability);
+    }
+
+    private void ResolveGrappleAbility(
+        RuntimeCharacterState actor,
+        RuntimeCharacterState target,
+        CharacterAbilitySO ability)
+    {
+        if (target == null || !target.IsAlive) return;
+
+        int hitChance = CombatFormulas.HitChance(ability.baseHitChance, actor.SPD, target.SPD);
+        if (!CombatFormulas.RollHit(hitChance))
         {
-            int hitChance = CombatFormulas.HitChance(90, actor.SPD, target.SPD);
-            if (!CombatFormulas.RollHit(hitChance))
-            {
-                OnActionMiss?.Invoke();
-                return;
-            }
-            int damage = CombatFormulas.PhysicalDamage(actor.ATK, power, target.DEF);
-            ApplyDamage(actor, target, damage);
+            OnActionMiss?.Invoke();
+            return;
+        }
+
+        StartGrapple(actor, target);
+        ApplyAbilityStatuses(actor, target, ability);
+    }
+
+    private void ApplyAbilityStatuses(
+        RuntimeCharacterState actor,
+        RuntimeCharacterState target,
+        CharacterAbilitySO ability)
+    {
+        if (ability.statusEffect == null) return;
+        int statusChance = CombatFormulas.StatusChance(ability.statusBaseChance, actor.MAG, target.RES);
+        if (CombatFormulas.RollStatus(statusChance))
+        {
+            bool negated = StatusEffectManager.Apply(target, ability.statusEffect, actor);
+            OnStatusApplied?.Invoke(target, ability.statusEffect, negated);
         }
     }
 
     // ── Swap In ────────────────────────────────────────────────────────────
 
-    private void ResolveSwapIn(RuntimeCharacterState supportHeroine)
+    private void ResolveSwapIn(RuntimeCharacterState newActive)
     {
-        if (_grappleActive) return; // Swap In unavailable during grapple
-
-        int idx = _heroines.IndexOf(supportHeroine);
-        if (idx < 0 || idx == _activeIndex) return;
-
+        int idx = _heroines.IndexOf(newActive);
+        if (idx < 0 || idx == _activeIndex || !newActive.IsAlive)
+        {
+            Debug.LogWarning("[CombatManager] ResolveSwapIn: invalid swap target.");
+            return;
+        }
         _activeIndex = idx;
-        // Swap In costs the support heroine's action — already consumed by
-        // being the current unit's turn.
+        Debug.Log($"[CombatManager] Swapped to {newActive.displayName}.");
     }
 
-    #endregion
+    // ── Grapple ────────────────────────────────────────────────────────────
 
-    // ====================================================================
-    #region Damage & Knockouts
-    // ====================================================================
+    private void StartGrapple(
+        RuntimeCharacterState grappler, RuntimeCharacterState target)
+    {
+        if (_grappleActive) return;
+        _grappleActive = true;
+        _grapplers.Clear();
+        _grapplers.Add(grappler);
+        _sceneStage = 0;
+        OnGrappleStarted?.Invoke();
+    }
+
+    private void ProcessGrappleAction(RuntimeCharacterState grappler)
+    {
+        var target = ActiveHeroine;
+
+        _sceneStage++;
+        OnSceneStageAdvanced?.Invoke(_sceneStage);
+
+        int resolveHit = CombatFormulas.GrappleResolveDamage(grappler.MAG, target.RES);
+        ApplyResolveDelta(target, -resolveHit);
+
+        if (_sceneStage >= 3)  // Stage 3 = climax
+        {
+            int recoil = CombatFormulas.ClimaxRecoilDamage(grappler.maxHP, ActiveHeroine.corruption);
+            ApplyDamage(grappler, grappler, recoil);
+            OnClimaxRecoil?.Invoke(grappler, recoil);
+            EndGrapple();
+        }
+    }
+
+    private void EndGrapple()
+    {
+        _grappleActive = false;
+        _grapplers.Clear();
+        _sceneStage = 0;
+        OnGrappleEnded?.Invoke();
+    }
+
+    private void ResolveStruggle(RuntimeCharacterState actor)
+    {
+        if (!_grappleActive || _grapplers.Count == 0) return;
+        var grappler = _grapplers[0];
+
+        int escapeChance = CombatFormulas.StruggleChance(actor.ATK, grappler.ATK, ResolveBand.Steady);  // TODO: read actual resolve band
+        bool escaped = CombatFormulas.RollHit(escapeChance);
+
+        OnStruggleAttempt?.Invoke(actor, escaped);
+        if (escaped) EndGrapple();
+    }
+
+    private void ResolveSubmit(RuntimeCharacterState actor)
+    {
+        if (!_grappleActive) return;
+        ApplyCorruptionDelta(actor, CombatFormulas.SubmitCorruptionGain(actor.RES));
+        EndGrapple();
+    }
+
+    private void ResolveIntervene(RuntimeCharacterState supporter)
+    {
+        if (!_grappleActive) return;
+        const int interveneCost = 8;
+        if (supporter.currentMP < interveneCost) return;
+        supporter.SpendMP(interveneCost);
+        EndGrapple();
+    }
+
+    private void ResolveWatch(RuntimeCharacterState supporter)
+    {
+        ApplyCorruptionDelta(supporter, 2);  // Watch: +2 Corruption (master ref Section 6)
+    }
+
+    private void ResolveEncourage(RuntimeCharacterState supporter)
+    {
+        ApplyCorruptionDelta(supporter, 4);  // Encourage: +4 Corruption (master ref Section 6)
+        if (_grappleActive)
+        {
+            _sceneStage++;
+            OnSceneStageAdvanced?.Invoke(_sceneStage);
+        }
+    }
+
+    // ── Damage / Resource Helpers ──────────────────────────────────────────
 
     private void ApplyDamage(
         RuntimeCharacterState source,
         RuntimeCharacterState target,
-        int rawDamage)
+        int amount)
     {
-        int finalDamage = rawDamage;
+        if (amount <= 0) return;
+        target.TakeDamage(amount);
+        OnDamageDealt?.Invoke(source, target, amount);
 
-        // Defend halves damage
-        if (target.isDefending)
-            finalDamage = Mathf.Max(1, Mathf.RoundToInt(rawDamage * CombatFormulas.DefendDamageMultiplier));
-
-        target.TakeDamage(finalDamage);
-        OnDamageDealt?.Invoke(source, target, finalDamage);
-
-        // ── Check passives that fire on damage to Active heroine ───────
-        if (target == ActiveHeroine && target.IsAlive)
-        {
-            CheckLysandraPassive(source, finalDamage);
-            CheckSeraphinePassive();
-        }
-
-        // ── Knockout ───────────────────────────────────────────────────
         if (!target.IsAlive)
             HandleKnockout(target);
+    }
+
+    private void ApplyResolveDelta(RuntimeCharacterState target, int delta)
+    {
+        if (delta < 0)
+        {
+            target.LoseResolve(-delta);
+            OnResolveLost?.Invoke(target, -delta);
+        }
+        else if (delta > 0)
+        {
+            target.RestoreResolve(delta);
+        }
+    }
+
+    private void ApplyCorruptionDelta(RuntimeCharacterState target, int delta)
+    {
+        if (delta > 0)
+        {
+            target.GainCorruption(delta);
+            OnCorruptionGained?.Invoke(target, delta);
+        }
     }
 
     private void HandleKnockout(RuntimeCharacterState unit)
     {
         OnUnitDefeated?.Invoke(unit);
 
-        if (!unit.isHeroine) return; // Enemy death — just remove from turn order
+        if (!unit.isHeroine) return;
 
-        // ── Heroine KO during grapple: scene → climax, grapple breaks ──
-        if (_grappleActive && unit == ActiveHeroine)
-        {
-            ProcessClimax();
-        }
+        // A support heroine knocked out — remove from grapple if involved
+        if (_grapplers.Contains(unit))
+            EndGrapple();
 
-        // ── Forced swap: pause and ask the player to choose ────────────
+        // Active heroine knocked out — require forced swap
         if (unit == ActiveHeroine)
         {
-            // Build the list of valid choices: living heroines not in the active slot
             var candidates = new List<RuntimeCharacterState>();
-            for (int i = 0; i < _heroines.Count; i++)
+            foreach (var h in _heroines)
             {
-                if (i != _activeIndex && _heroines[i].IsAlive)
-                    candidates.Add(_heroines[i]);
+                if (h != unit && h.IsAlive)
+                    candidates.Add(h);
             }
 
-            if (candidates.Count == 0)
+            if (candidates.Count > 0)
             {
-                // No living heroines remain — CheckEncounterEnd will catch this
-                Debug.Log("[CombatManager] No heroines available to swap in.");
-                return;
+                _phase = CombatPhase.AwaitingForcedSwap;
+                OnForcedSwapRequired?.Invoke(candidates);
+                // Combat is now paused; SubmitForcedSwap() will resume it.
             }
-
-            // Pause combat and hand control to the UI.
-            // SubmitForcedSwap() resumes the flow.
-            _phase = CombatPhase.AwaitingForcedSwap;
-            OnForcedSwapRequired?.Invoke(candidates);
+            // If no candidates, CheckEncounterEnd() will catch the defeat.
         }
-    }
-
-    #endregion
-
-    // ====================================================================
-    #region Grapple System
-    // ====================================================================
-
-    private void TryInitiateGrapple(
-        RuntimeCharacterState enemy, RuntimeCharacterState target)
-    {
-        if (!target.isHeroine) return;
-        if (target != ActiveHeroine) return; // Only Active can be grappled
-
-        // Check max grapplers
-        if (_grappleActive)
-        {
-            if (_grapplers.Count >= ActiveHeroine.MaxGrapplers) return;
-            if (_grapplers.Contains(enemy)) return;
-
-            // At ClearLow, only the initial grapple-ability enemy can grapple.
-            // Additional enemies can join only at Tempted+ (any enemy can join).
-            // This enemy has a grapple ability, so they can join regardless.
-            _grapplers.Add(enemy);
-        }
-        else
-        {
-            _grappleActive = true;
-            _sceneStage = 1;
-            _grapplers.Clear();
-            _grapplers.Add(enemy);
-            OnGrappleStarted?.Invoke();
-        }
-    }
-
-    /// <summary>Automatic Grapple Action on a grappling enemy's turn.</summary>
-    private void ProcessGrappleAction(RuntimeCharacterState grappler)
-    {
-        var target = ActiveHeroine;
-
-        // Stage 2 bonus
-        int resolveBonus = _sceneStage >= 2 ? 2 : 0;
-        int corruptBonus = _sceneStage >= 2 ? 2 : 0;
-
-        // Resolve damage
-        int resolveDmg = CombatFormulas.GrappleResolveDamage(grappler.MAG, target.RES)
-                         + resolveBonus;
-        target.LoseResolve(resolveDmg);
-        OnResolveLost?.Invoke(target, resolveDmg);
-
-        // Corruption gain
-        int corruptGain = CombatFormulas.GrappleCorruptionGain(target.RES)
-                          + corruptBonus;
-        target.GainCorruption(corruptGain);
-        OnCorruptionGained?.Invoke(target, corruptGain);
-
-        // Frenzy: +1 ATK and +1 MAG permanently
-        grappler.PermanentStatBoost(1, 1);
-    }
-
-    // ── Struggle ───────────────────────────────────────────────────────────
-
-    private void ResolveStruggle(RuntimeCharacterState heroine)
-    {
-        if (!_grappleActive || _grapplers.Count == 0) return;
-
-        // Use primary (first) grappler for ATK comparison
-        var primaryGrappler = _grapplers[0];
-
-        int chance = CombatFormulas.StruggleChance(
-            heroine.ATK, primaryGrappler.ATK, heroine.GetResolveBand());
-
-        if (chance < 0)
-        {
-            // Broken — should not reach here (UI shouldn't offer Struggle)
-            OnStruggleAttempt?.Invoke(heroine, false);
-            return;
-        }
-
-        bool escaped = CombatFormulas.RollHit(chance); // reuse the roll helper
-        OnStruggleAttempt?.Invoke(heroine, escaped);
-
-        if (escaped)
-            BreakGrapple();
-    }
-
-    // ── Submit ─────────────────────────────────────────────────────────────
-
-    private void ResolveSubmit(RuntimeCharacterState heroine)
-    {
-        if (!_grappleActive || _grapplers.Count == 0) return;
-
-        var primaryGrappler = _grapplers[0];
-
-        // +1 Scene Stage
-        AdvanceSceneStage();
-
-        // Resolve damage from Submit
-        int resolveDmg = CombatFormulas.SubmitResolveDamage(
-            primaryGrappler.MAG, heroine.RES);
-        heroine.LoseResolve(resolveDmg);
-        OnResolveLost?.Invoke(heroine, resolveDmg);
-
-        // Corruption from Submit
-        int corruptGain = CombatFormulas.SubmitCorruptionGain(heroine.RES);
-        heroine.GainCorruption(corruptGain);
-        OnCorruptionGained?.Invoke(heroine, corruptGain);
-    }
-
-    // ── Intervene (Support, guaranteed break) ──────────────────────────────
-
-    private void ResolveIntervene(RuntimeCharacterState support)
-    {
-        if (!_grappleActive) return;
-        if (support.currentMP < 8)
-        {
-            Debug.LogWarning($"[CombatManager] {support.displayName} lacks MP to Intervene (8 required).");
-            return;
-        }
-
-        support.SpendMP(8);
-        support.LoseResolve(3);
-        OnResolveLost?.Invoke(support, 3);
-
-        BreakGrapple();
-    }
-
-    // ── Watch (Support, free) ──────────────────────────────────────────────
-
-    private void ResolveWatch(RuntimeCharacterState support)
-    {
-        support.GainCorruption(5);
-        OnCorruptionGained?.Invoke(support, 5);
-    }
-
-    // ── Encourage (Support, free) ──────────────────────────────────────────
-
-    private void ResolveEncourage(RuntimeCharacterState support)
-    {
-        if (!_grappleActive || _grapplers.Count == 0) return;
-
-        // Capture reference before stage advance — AdvanceSceneStage may
-        // trigger Climax → BreakGrapple → clear _grapplers.
-        var primaryGrappler = _grapplers[0];
-
-        // +1 Scene Stage
-        AdvanceSceneStage();
-
-        // Corruption: +8 to encourager, +3 to Active
-        support.GainCorruption(8);
-        OnCorruptionGained?.Invoke(support, 8);
-
-        ActiveHeroine.GainCorruption(3);
-        OnCorruptionGained?.Invoke(ActiveHeroine, 3);
-
-        // Enemy +1 ATK permanent (primary grappler)
-        primaryGrappler.PermanentStatBoost(1, 0);
-    }
-
-    // ── Scene stage management ─────────────────────────────────────────────
-
-    private void AdvanceSceneStage()
-    {
-        // Stage 4+ requires Active or encourager Corruption >= 40.
-        // For now (Decision M), Stage 4+ effects are deferred to scene writing,
-        // so climax always fires at Stage 3 regardless of corruption.
-        if (_sceneStage >= 3)
-        {
-            return;
-        }
-
-        _sceneStage++;
-        OnSceneStageAdvanced?.Invoke(_sceneStage);
-
-        if (_sceneStage >= 3)
-            ProcessClimax();
-    }
-
-    private void ProcessClimax()
-    {
-        // Climax Recoil damage to each grappler
-        foreach (var grappler in _grapplers)
-        {
-            int recoil = CombatFormulas.ClimaxRecoilDamage(
-                grappler.maxHP, ActiveHeroine.corruption);
-            grappler.TakeDamage(recoil);
-            OnClimaxRecoil?.Invoke(grappler, recoil);
-
-            if (!grappler.IsAlive)
-                OnUnitDefeated?.Invoke(grappler);
-        }
-
-        BreakGrapple();
-    }
-
-    private void BreakGrapple()
-    {
-        // Enemies keep Frenzy bonuses (permanent stat changes already applied)
-        _grappleActive = false;
-        _grapplers.Clear();
-        _sceneStage = 0;
-        OnGrappleEnded?.Invoke();
     }
 
     #endregion
@@ -1075,93 +920,28 @@ public class CombatManager : MonoBehaviour
     #region Passive Triggers
     // ====================================================================
 
-    /// <summary>
-    /// Lysandra — Blade Instinct:
-    /// Active takes hit >= 20% max HP -> auto-attack at Very Low, 90% hit.
-    /// 3-turn cooldown (Lysandra's turns).
-    /// </summary>
-    private void CheckLysandraPassive(RuntimeCharacterState attacker, int damageDealt)
+    private void TryTriggerPassive(string passiveId, RuntimeCharacterState source)
     {
-        var lysandra = FindSupportHeroine("lysandra");
-        if (lysandra == null || !lysandra.IsAlive) return;
-        if (!lysandra.IsPassiveReady("blade_instinct")) return;
-
-        float threshold = ActiveHeroine.maxHP * 0.20f;
-        if (damageDealt < threshold) return;
-
-        lysandra.StartPassiveCooldown("blade_instinct", 3);
-        OnPassiveTriggered?.Invoke("blade_instinct", lysandra);
-
-        RuntimeCharacterState enemyTarget = (attacker != null && attacker.IsAlive && !attacker.isHeroine)
-            ? attacker
-            : null;
-
-        if (enemyTarget == null)
-        {
-            foreach (var e in _enemies)
-                if (e.IsAlive) { enemyTarget = e; break; }
-        }
-
-        if (enemyTarget == null) return;
-
-        float power = CombatFormulas.PowerMultiplier(PowerBand.VeryLow);
-        int hitChance = CombatFormulas.HitChance(90, lysandra.SPD, enemyTarget.SPD);
-
-        if (CombatFormulas.RollHit(hitChance))
-        {
-            int damage = CombatFormulas.PhysicalDamage(
-                lysandra.ATK, power, enemyTarget.DEF);
-            enemyTarget.TakeDamage(damage);
-            OnDamageDealt?.Invoke(lysandra, enemyTarget, damage);
-
-            if (!enemyTarget.IsAlive)
-                OnUnitDefeated?.Invoke(enemyTarget);
-        }
-        else
-        {
-            OnActionMiss?.Invoke();
-        }
+        OnPassiveTriggered?.Invoke(passiveId, source);
     }
-
-    /// <summary>
-    /// Seraphine — Divine Vigil:
-    /// Active drops below 35% HP -> auto-heal 12 HP flat.
-    /// 4-turn cooldown (Seraphine's turns).
-    /// </summary>
-    private void CheckSeraphinePassive()
-    {
-        var seraphine = FindSupportHeroine("seraphine");
-        if (seraphine == null || !seraphine.IsAlive) return;
-        if (!seraphine.IsPassiveReady("divine_vigil")) return;
-        if (ActiveHeroine.HPPercent >= 0.35f) return;
-
-        seraphine.StartPassiveCooldown("divine_vigil", 4);
-        OnPassiveTriggered?.Invoke("divine_vigil", seraphine);
-
-        ActiveHeroine.Heal(12);
-        OnHealingDone?.Invoke(ActiveHeroine, 12);
-    }
-
-    // Note: Mira's Alchemist's Reflex is checked in TryApplyStatus(),
-    // not here, because it intercepts BEFORE status application.
 
     #endregion
 
     // ====================================================================
-    #region Enemy AI — Layer 1
+    #region Enemy AI
     // ====================================================================
 
     private CombatAction DecideEnemyAction(RuntimeCharacterState enemy)
     {
         return enemy.characterId switch
         {
-            "hollow_servant"    => AI_HollowServant(enemy),
-            "knife_footman"     => AI_KnifeFootman(enemy),
-            "prayer_rag_novice" => AI_PrayerRagNovice(enemy),
-            "corrupted_butler"  => AI_CorruptedButler(enemy),
-            "red_wax_acolyte"   => AI_RedWaxAcolyte(enemy),
-            "blood_nun"         => AI_BloodNun(enemy),
-            _                   => AI_Default(enemy)
+            "hollow_servant"   => AI_HollowServant(enemy),
+            "knife_footman"    => AI_KnifeFootman(enemy),
+            "prayer_rag_novice"=> AI_PrayerRagNovice(enemy),
+            "corrupted_butler" => AI_CorruptedButler(enemy),
+            "red_wax_acolyte"  => AI_RedWaxAcolyte(enemy),
+            "blood_nun"        => AI_BloodNun(enemy),
+            _                  => AI_Default(enemy)
         };
     }
 
@@ -1171,10 +951,8 @@ public class CombatManager : MonoBehaviour
         RuntimeCharacterState target)
     {
         var ability = enemy.abilities.Find(a => a.abilityId == abilityId);
-        if (ability == null) return null;
-        if (enemy.currentMP < ability.mpCost) return null;
-        if (ability.hpThresholdToUse > 0f &&
-            (float)enemy.currentHP / enemy.maxHP > ability.hpThresholdToUse) return null;
+        if (ability == null || enemy.currentMP < ability.mpCost) return null;
+        // hpThresholdToUse not on CharacterAbilitySO — threshold filtering deferred
 
         return new CombatAction
         {
@@ -1359,9 +1137,7 @@ public class CombatManager : MonoBehaviour
     {
         foreach (var ability in enemy.abilities)
         {
-            if (enemy.currentMP >= ability.mpCost &&
-                (ability.hpThresholdToUse <= 0f ||
-                 (float)enemy.currentHP / enemy.maxHP <= ability.hpThresholdToUse))
+            if (enemy.currentMP >= ability.mpCost) // hpThresholdToUse deferred — all abilities available
             {
                 return SkillAction(enemy, ability, ActiveHeroine);
             }

@@ -7,7 +7,7 @@ using UnityEngine;
 // ════════════════════════════════════════════════════════════════════════════
 // Attach to the same "_Managers" GameObject.
 // Owns the generated map, tracks the current room, and orchestrates
-// room entry → encounter/event → completion → movement.
+// room entry → encounter/event/hotspot → completion → movement.
 //
 // UI subscribes to events and calls public methods (EnterRoom, CompleteRoom,
 // MoveToRoom) in response to player input.
@@ -15,6 +15,13 @@ using UnityEngine;
 // RoomManager does NOT run combat itself — it builds the encounter from
 // the RoomNode's data and hands it to CombatManager via EncounterBuilder
 // pattern (builds RuntimeCharacterStates and calls CombatManager.StartEncounter).
+//
+// HOTSPOT SYSTEM (new):
+//   Non-combat rooms now use RoomHotspotSO[] instead of RoomEventSO.
+//   GenerateHotspots() is called on room entry; it randomizes from pool
+//   anchors using a seeded RNG and stores results in room.spawnedHotspots.
+//   OnHotspotRoomEntered fires with the final hotspot list — UI subscribes.
+//   Old PresentEvent/OnEventRoomEntered path is kept for backward compat.
 // ════════════════════════════════════════════════════════════════════════════
 
 public class RoomManager : MonoBehaviour
@@ -47,9 +54,18 @@ public class RoomManager : MonoBehaviour
     /// <summary>Fired after the boss is beaten and the layer is done.</summary>
     public event Action<int> OnLayerCompleted; // layerNumber
 
-    /// <summary>Fired when an event room is entered — UI should display choices.</summary>
+    /// <summary>
+    /// DEPRECATED — fires for old eventData rooms.
+    /// New rooms use OnHotspotRoomEntered instead.
+    /// </summary>
     public event Action<RoomNode, List<RoomEventSO.EventChoice>> OnEventRoomEntered;
-    //                   room       availableChoices (conditions already filtered)
+
+    /// <summary>
+    /// Fired when a hotspot room is entered and hotspots have been generated.
+    /// UI should display the hotspot buttons at their anchor positions.
+    /// </summary>
+    public event Action<RoomNode, RoomHotspotSO[]> OnHotspotRoomEntered;
+    //                   room       spawnedHotspots (includes fixed hotspots)
 
     // ── Runtime state ──────────────────────────────────────────────────────
 
@@ -177,7 +193,7 @@ public class RoomManager : MonoBehaviour
             case RoomType.Event:
             case RoomType.LoreDiscovery:
             case RoomType.RiskReward:
-                PresentEvent(room);
+                RouteNonCombatRoom(room);
                 break;
 
             case RoomType.FalseRest:
@@ -185,8 +201,30 @@ public class RoomManager : MonoBehaviour
                 break;
 
             case RoomType.KeyMechanism:
-                PresentEvent(room); // Key rooms use event SO for their puzzle/gate
+                RouteNonCombatRoom(room);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Decides whether a non-combat room uses the new hotspot system
+    /// or the legacy eventData path.
+    ///
+    /// spawnedHotspots is populated by LayerGenerator.PopulateHotspots() at
+    /// map creation time — this method reads it but never regenerates it.
+    /// Backtracking and save/load will always see the same hotspot set.
+    /// </summary>
+    private void RouteNonCombatRoom(RoomNode room)
+    {
+        if (room.UsesHotspotSystem)
+        {
+            // spawnedHotspots already set by LayerGenerator — fire UI event only
+            OnHotspotRoomEntered?.Invoke(room, room.spawnedHotspots);
+        }
+        else
+        {
+            // Legacy path — room has an eventData SO, no hotspot anchors
+            PresentEvent(room);
         }
     }
 
@@ -216,17 +254,17 @@ public class RoomManager : MonoBehaviour
 
             var state = new RuntimeCharacterState
             {
-                characterId  = data.enemyId,
-                displayName  = data.displayName,
-                isHeroine    = false,
-                maxHP        = data.FinalHP,
-                currentHP    = data.FinalHP,
-                maxMP        = data.FinalMP,
-                currentMP    = data.FinalMP,
-                maxResolve   = 0,
-                resolve      = 0,
+                characterId   = data.enemyId,
+                displayName   = data.displayName,
+                isHeroine     = false,
+                maxHP         = data.FinalHP,
+                currentHP     = data.FinalHP,
+                maxMP         = data.FinalMP,
+                currentMP     = data.FinalMP,
+                maxResolve    = 0,
+                resolve       = 0,
                 maxCorruption = 0,
-                corruption   = 0,
+                corruption    = 0,
             };
 
             // Base stat setters
@@ -265,7 +303,130 @@ public class RoomManager : MonoBehaviour
         // or RoomManager.HandleRunEnd() as appropriate.
     }
 
-    // ── Events ─────────────────────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════
+    // Hotspot interaction (new)
+    // ════════════════════════════════════════════════════════════════════════
+    // NOTE: hotspot generation (rolling from pools) lives in LayerGenerator,
+    // not here.  See LayerGenerator.PopulateHotspots().
+    // RoomManager only reads room.spawnedHotspots — it never writes it.
+
+    /// <summary>
+    /// Called by UI when the player clicks a hotspot.
+    /// For Event hotspots, pass the chosen EventChoice; otherwise leave null.
+    /// </summary>
+    public void SubmitHotspotInteraction(RoomNode room, RoomHotspotSO hotspot,
+                                         RoomHotspotSO.EventChoice eventChoice = null)
+    {
+        if (room == null || hotspot == null)
+        {
+            Debug.LogWarning("[RoomManager] SubmitHotspotInteraction called with null args.");
+            return;
+        }
+
+        switch (hotspot.type)
+        {
+            case RoomHotspotSO.HotspotType.Item:
+                HandleItemHotspot(room, hotspot);
+                break;
+
+            case RoomHotspotSO.HotspotType.Door:
+                HandleDoorHotspot(room, hotspot);
+                break;
+
+            case RoomHotspotSO.HotspotType.Event:
+                if (eventChoice != null)
+                    HandleEventChoice(room, hotspot, eventChoice);
+                else
+                    Debug.LogWarning($"[RoomManager] Event hotspot {hotspot.hotspotId} submitted with no choice.");
+                break;
+
+            case RoomHotspotSO.HotspotType.Lore:
+                HandleLoreHotspot(room, hotspot);
+                break;
+        }
+    }
+
+    private void HandleItemHotspot(RoomNode room, RoomHotspotSO hotspot)
+    {
+        // ItemManager handles take/use/leave — not yet implemented.
+        // This is the hook point for the Item system chat.
+        //
+        // Stub behavior: log and do nothing (room stays open for other hotspots).
+        Debug.Log($"[RoomManager] Item hotspot clicked: {hotspot.hotspotId} " +
+                  $"({hotspot.displayName}) in {room.nodeId}");
+
+        // TODO: ItemManager.Instance.PresentPickupChoice(hotspot.itemReward, hotspot.itemPickupText)
+        // Item hotspots do NOT auto-complete the room — the player must exit via the door.
+    }
+
+    private void HandleDoorHotspot(RoomNode room, RoomHotspotSO hotspot)
+    {
+        // Player chose to leave the room via the door hotspot.
+        Debug.Log($"[RoomManager] Door hotspot used: {hotspot.hotspotId} in {room.nodeId}");
+        CompleteRoom(room);
+    }
+
+    private void HandleEventChoice(RoomNode room, RoomHotspotSO hotspot,
+                                    RoomHotspotSO.EventChoice choice)
+    {
+        // Apply flag effects
+        RoomHotspotSO.ApplyEffects(choice);
+
+        // Apply stat changes to the active heroine
+        var party = RunStateManager.Instance?.Party;
+        if (party != null && party.Count > 0)
+        {
+            var active = party[0];
+            if (choice.healHP > 0)           active.Heal(choice.healHP);
+            if (choice.restoreMP > 0)        active.RestoreMP(choice.restoreMP);
+            if (choice.resolveChange > 0)    active.RestoreResolve(choice.resolveChange);
+            if (choice.resolveChange < 0)    active.LoseResolve(-choice.resolveChange);
+            if (choice.corruptionChange > 0) active.GainCorruption(choice.corruptionChange);
+        }
+
+        // If choice triggers combat, graft enemies onto the room and start combat.
+        // Room completion is handled after combat ends (by the combat subscriber).
+        if (choice.encounterEnemies != null && choice.encounterEnemies.Length > 0)
+        {
+            room.encounterEnemies   = choice.encounterEnemies;
+            room.encounterAbilities = choice.encounterAbilities;
+            StartCombatEncounter(room);
+            return;
+        }
+
+        // Non-combat event choice — complete the room immediately.
+        CompleteRoom(room);
+    }
+
+    private void HandleLoreHotspot(RoomNode room, RoomHotspotSO hotspot)
+    {
+        // Apply lore flags
+        var fm = FlagManager.Instance;
+        if (hotspot.loreFlags != null && fm != null)
+        {
+            foreach (var effect in hotspot.loreFlags)
+                fm.SetFlag(effect.scope, effect.key, effect.value);
+        }
+
+        // Apply Resolve change to active heroine
+        var party = RunStateManager.Instance?.Party;
+        if (party != null && party.Count > 0 && hotspot.loreResolveChange != 0)
+        {
+            var active = party[0];
+            if (hotspot.loreResolveChange > 0)
+                active.RestoreResolve(hotspot.loreResolveChange);
+            else
+                active.LoseResolve(-hotspot.loreResolveChange);
+        }
+
+        // Lore does NOT auto-complete the room.
+        // The player must leave via the door hotspot.
+        Debug.Log($"[RoomManager] Lore hotspot read: {hotspot.hotspotId} in {room.nodeId}");
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    // Legacy event system (backward compatibility — keep until all rooms migrated)
+    // ════════════════════════════════════════════════════════════════════════
 
     private void PresentEvent(RoomNode room)
     {
@@ -296,7 +457,7 @@ public class RoomManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by UI when the player picks an event choice.
+    /// Called by UI when the player picks a legacy event choice.
     /// </summary>
     public void SubmitEventChoice(RoomNode room, RoomEventSO.EventChoice choice)
     {
@@ -308,24 +469,22 @@ public class RoomManager : MonoBehaviour
         if (party != null && party.Count > 0)
         {
             var active = party[0];
-            if (choice.healHP > 0)         active.Heal(choice.healHP);
-            if (choice.restoreMP > 0)      active.RestoreMP(choice.restoreMP);
-            if (choice.resolveChange > 0)  active.RestoreResolve(choice.resolveChange);
-            if (choice.resolveChange < 0)  active.LoseResolve(-choice.resolveChange);
+            if (choice.healHP > 0)           active.Heal(choice.healHP);
+            if (choice.restoreMP > 0)        active.RestoreMP(choice.restoreMP);
+            if (choice.resolveChange > 0)    active.RestoreResolve(choice.resolveChange);
+            if (choice.resolveChange < 0)    active.LoseResolve(-choice.resolveChange);
             if (choice.corruptionChange > 0) active.GainCorruption(choice.corruptionChange);
         }
 
         // If the choice triggers combat, start it
         if (choice.encounterEnemies != null && choice.encounterEnemies.Length > 0)
         {
-            // Temporarily graft encounter onto the room node for StartCombatEncounter
             room.encounterEnemies   = choice.encounterEnemies;
             room.encounterAbilities = choice.encounterAbilities;
             StartCombatEncounter(room);
-            return; // room completion handled after combat
+            return;
         }
 
-        // Otherwise, complete immediately
         CompleteRoom(room);
     }
 
@@ -333,12 +492,10 @@ public class RoomManager : MonoBehaviour
 
     private void HandleFalseRest(RoomNode room)
     {
-        // False Rest rooms use an event SO for their trap content.
-        // The "false" part is that the player thought it was a safe Event room.
-        // Now that isRevealed = true, the UI shows the real type.
-        // Content is driven by the event SO — different choices may appear
-        // based on Resolve/Corruption band flags (set above in EnterRoom).
-        PresentEvent(room);
+        // False Rest rooms use the same routing logic as other non-combat rooms:
+        // hotspot system if anchors/fixedHotspots are present, legacy event SO otherwise.
+        // isRevealed = true (set above) means the UI can now show the real room type.
+        RouteNonCombatRoom(room);
     }
 
     // ════════════════════════════════════════════════════════════════════════

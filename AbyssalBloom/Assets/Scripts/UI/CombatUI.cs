@@ -26,11 +26,14 @@ public class CombatUI : MonoBehaviour
     public Text[] heroineMPText     = new Text[3];
     public Text[] heroineResolveText = new Text[3];
     public Text[] heroineCorruptText = new Text[3];
-    public Image[] heroineHPBar     = new Image[3];   // fillAmount 0–1
+    public Image[] heroineHPBar      = new Image[3];   // fillAmount 0–1
+    public Image[] heroineMPBar      = new Image[3];   // fillAmount 0–1
     public Image[] heroineResolveBar = new Image[3];
+    public Image[] heroineCorruptBar = new Image[3];   // fillAmount 0–1
 
-    [Header("Active Heroine Indicator (highlights active slot)")]
-    public Image activeIndicator; // colour-tinted panel behind slot 0
+    [Header("Active Heroine Indicator + Portrait")]
+    public Image activeIndicator;       // colour-tinted panel behind slot 0
+    public Image activeHeroinePortrait; // large portrait on right side
 
     // ── Enemy panel ────────────────────────────────────────────────────────
     // DECISION: one row per enemy, dynamically shown/hidden. Max display = 6.
@@ -39,7 +42,11 @@ public class CombatUI : MonoBehaviour
     [Header("Enemy Rows (one per possible enemy, 1–6)")]
     public Text[]  enemyNameText = new Text[6];
     public Text[]  enemyHPText   = new Text[6];
+    public Text[]  enemyMPText   = new Text[6];
+    public Text[]  enemyCORText  = new Text[6];
     public Image[] enemyHPBar    = new Image[6];
+    public Image[] enemyMPBar    = new Image[6];
+    public Image[] enemyCORBar   = new Image[6];
     public GameObject[] enemyRowRoot = new GameObject[6]; // parent to show/hide
 
     // ── Grapple / Stage display ────────────────────────────────────────────
@@ -67,11 +74,32 @@ public class CombatUI : MonoBehaviour
     public Button[] skillButtons = new Button[6];
     public Text[]   skillButtonLabels = new Text[6];
 
+    // Special sub-menu: shown when the player picks "Special" — lists specials.
+    [Header("Special Sub-Menu (pool of 6)")]
+    public GameObject specialMenuRoot;
+    public Button[] specialButtons = new Button[6];
+    public Text[]   specialButtonLabels = new Text[6];
+
+    // ── Inventory slots ──────────────────────────────────────────────────
+    // 6 item slots shown in the item sub-menu during combat.
+
+    [Header("Inventory Slots (6)")]
+    public GameObject[] inventorySlots    = new GameObject[6];
+    public Image[]      inventoryIcons    = new Image[6];
+    public Text[]       inventoryNameTexts = new Text[6];
+    public Text[]       inventoryQtyTexts  = new Text[6];
+
+    // Root panel that wraps all inventory slots (shown/hidden as a unit).
+    [Header("Item Menu Root")]
+    public GameObject itemMenuRoot;
+
     // ── Combat log ─────────────────────────────────────────────────────────
 
     [Header("Combat Log")]
     public ScrollRect logScrollRect;
     public Text       logText;
+    public Button     logToggleButton;  // collapse/expand
+    public GameObject logBodyPanel;     // toggled active/inactive
     private const int MaxLogLines = 200;
     private readonly System.Text.StringBuilder _logBuffer = new System.Text.StringBuilder();
     private int _logLineCount;
@@ -82,6 +110,22 @@ public class CombatUI : MonoBehaviour
     private RuntimeCharacterState _currentActor;
     private bool _awaitingInput;
 
+    // ── Target selection state ─────────────────────────────────────────────
+
+    private bool _selectingTarget;
+    private System.Action<RuntimeCharacterState> _onTargetSelected;
+    private ItemSO _pendingItem;   // non-null when selecting a target for UseItem
+
+    // Cached Button components added to enemy row roots for click-to-select.
+    private Button[] _enemyClickButtons;
+
+    // Highlight colour applied to enemy name text during target selection.
+    private static readonly Color TargetHighlightColour = new Color(1f, 0.85f, 0.2f); // gold
+    private Color[] _enemyNameOriginalColours;
+
+    // Cached Button components added to inventory slot roots for item clicking.
+    private Button[] _inventorySlotButtons;
+
     // ════════════════════════════════════════════════════════════════════════
     #region Lifecycle
     // ════════════════════════════════════════════════════════════════════════
@@ -90,8 +134,50 @@ public class CombatUI : MonoBehaviour
     {
         // All buttons start disabled; they enable only on OnAwaitingAction.
         SetAllButtonsInteractable(false);
-        if (skillMenuRoot != null) skillMenuRoot.SetActive(false);
-        if (grapplePanel  != null) grapplePanel.SetActive(false);
+        if (skillMenuRoot   != null) skillMenuRoot.SetActive(false);
+        if (specialMenuRoot != null) specialMenuRoot.SetActive(false);
+        if (itemMenuRoot    != null) itemMenuRoot.SetActive(false);
+        if (grapplePanel    != null) grapplePanel.SetActive(false);
+
+        // Wire log collapse/expand toggle
+        if (logToggleButton != null)
+            logToggleButton.onClick.AddListener(ToggleLogBody);
+
+        // Wire enemy row click buttons for target selection.
+        _enemyClickButtons       = new Button[enemyRowRoot.Length];
+        _enemyNameOriginalColours = new Color[enemyRowRoot.Length];
+
+        for (int i = 0; i < enemyRowRoot.Length; i++)
+        {
+            if (enemyRowRoot[i] == null) continue;
+
+            // Capture original name text colour for restoration.
+            if (enemyNameText[i] != null)
+                _enemyNameOriginalColours[i] = enemyNameText[i].color;
+
+            var btn = enemyRowRoot[i].GetComponent<Button>()
+                   ?? enemyRowRoot[i].AddComponent<Button>();
+            btn.transition  = Selectable.Transition.None; // visual handled by name text colour
+            btn.interactable = false; // only active during target selection
+            int captured = i;
+            btn.onClick.AddListener(() => OnEnemyPanelClicked(captured));
+            _enemyClickButtons[i] = btn;
+        }
+
+        // Wire inventory slot click buttons for item selection.
+        _inventorySlotButtons = new Button[inventorySlots.Length];
+        for (int i = 0; i < inventorySlots.Length; i++)
+        {
+            if (inventorySlots[i] == null) continue;
+
+            var btn = inventorySlots[i].GetComponent<Button>()
+                   ?? inventorySlots[i].AddComponent<Button>();
+            btn.transition  = Selectable.Transition.ColorTint;
+            btn.interactable = false;
+            int captured = i;
+            btn.onClick.AddListener(() => OnItemChosen(captured));
+            _inventorySlotButtons[i] = btn;
+        }
     }
 
     private void OnEnable()
@@ -110,6 +196,7 @@ public class CombatUI : MonoBehaviour
     {
         combatManager.OnTurnStarted       += HandleTurnStarted;
         combatManager.OnAwaitingAction    += HandleAwaitingAction;
+        combatManager.OnForcedSwapRequired+= HandleForcedSwapRequired;
         combatManager.OnDamageDealt       += HandleDamageDealt;
         combatManager.OnHealingDone       += HandleHealingDone;
         combatManager.OnResolveLost       += HandleResolveLost;
@@ -133,6 +220,7 @@ public class CombatUI : MonoBehaviour
     {
         combatManager.OnTurnStarted       -= HandleTurnStarted;
         combatManager.OnAwaitingAction    -= HandleAwaitingAction;
+        combatManager.OnForcedSwapRequired-= HandleForcedSwapRequired;
         combatManager.OnDamageDealt       -= HandleDamageDealt;
         combatManager.OnHealingDone       -= HandleHealingDone;
         combatManager.OnResolveLost       -= HandleResolveLost;
@@ -178,6 +266,13 @@ public class CombatUI : MonoBehaviour
         _awaitingInput  = true;
 
         BuildActionMenu(unit, actions);
+    }
+
+    private void HandleForcedSwapRequired(List<RuntimeCharacterState> candidates)
+    {
+        _awaitingInput = true;
+        Log("  *** Choose a heroine to take the Active slot ***");
+        BuildForcedSwapMenu(candidates);
     }
 
     private void HandleDamageDealt(
@@ -264,11 +359,23 @@ public class CombatUI : MonoBehaviour
         RefreshAllStats();
     }
 
-    private void HandleEncounterEnd(bool victory)
+    private void HandleEncounterEnd(EncounterResult result)
     {
         _awaitingInput = false;
         SetAllButtonsInteractable(false);
-        Log(victory ? "═══ VICTORY ═══" : "═══ DEFEAT ═══");
+        ExitTargetSelection(); // clean up any in-progress selection
+        switch (result)
+        {
+            case EncounterResult.Victory:
+                Log("═══ VICTORY ═══");
+                break;
+            case EncounterResult.Fled:
+                Log("═══ ESCAPED ═══");
+                break;
+            case EncounterResult.Defeated:
+                Log("═══ DEFEAT ═══");
+                break;
+        }
     }
 
     private void HandleDotTick(RuntimeCharacterState unit)
@@ -291,8 +398,10 @@ public class CombatUI : MonoBehaviour
     private void BuildActionMenu(
         RuntimeCharacterState unit, List<ActionType> actions)
     {
-        // Hide skill sub-menu
+        // Hide all sub-menus
         if (skillMenuRoot != null) skillMenuRoot.SetActive(false);
+        if (specialMenuRoot != null) specialMenuRoot.SetActive(false);
+        if (itemMenuRoot  != null) itemMenuRoot.SetActive(false);
 
         // Clear all buttons first
         SetAllButtonsInteractable(false);
@@ -324,6 +433,46 @@ public class CombatUI : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Replaces the normal action menu with one button per candidate heroine.
+    /// Clicking a button calls SubmitForcedSwap() with that heroine.
+    /// Uses the same action button pool — no extra UI needed.
+    /// </summary>
+    private void BuildForcedSwapMenu(List<RuntimeCharacterState> candidates)
+    {
+        if (skillMenuRoot  != null) skillMenuRoot.SetActive(false);
+        if (specialMenuRoot != null) specialMenuRoot.SetActive(false);
+        if (itemMenuRoot   != null) itemMenuRoot.SetActive(false);
+
+        SetAllButtonsInteractable(false);
+        for (int i = 0; i < actionButtons.Length; i++)
+        {
+            if (actionButtonLabels[i] != null)
+                actionButtonLabels[i].text = "";
+        }
+
+        for (int i = 0; i < candidates.Count && i < actionButtons.Length; i++)
+        {
+            var heroine = candidates[i];
+            actionButtonLabels[i].text =
+                $"Swap In: {heroine.displayName}  HP {heroine.currentHP}/{heroine.maxHP}";
+            actionButtons[i].interactable = true;
+
+            actionButtons[i].onClick.RemoveAllListeners();
+            actionButtons[i].onClick.AddListener(() => OnForcedSwapChosen(heroine));
+        }
+    }
+
+    private void OnForcedSwapChosen(RuntimeCharacterState heroine)
+    {
+        if (!_awaitingInput) return;
+
+        _awaitingInput = false;
+        SetAllButtonsInteractable(false);
+        Log($"  → {heroine.displayName} steps forward.");
+        combatManager.SubmitForcedSwap(heroine);
+    }
+
     private string GetActionLabel(ActionType type, RuntimeCharacterState unit)
     {
         return type switch
@@ -331,7 +480,7 @@ public class CombatUI : MonoBehaviour
             ActionType.Attack         => "Attack",
             ActionType.Defend         => "Defend",
             ActionType.Skill          => "Skill ▶",
-            ActionType.UseItem        => "Item",
+            ActionType.UseItem        => "Item ▶",
             ActionType.Run            => "Run",
             ActionType.AssistAttack   => "Assist Attack",
             ActionType.AssistAbility  => "Assist Ability",
@@ -349,15 +498,24 @@ public class CombatUI : MonoBehaviour
     {
         if (!_awaitingInput) return;
 
-        // Skill: open sub-menu instead of submitting immediately
+        // Skill / AssistAbility: open skill sub-menu
         if (type == ActionType.Skill || type == ActionType.AssistAbility)
         {
             OpenSkillMenu(_currentActor);
             return;
         }
 
+        // UseItem: open item sub-menu
+        if (type == ActionType.UseItem)
+        {
+            OpenItemMenu();
+            return;
+        }
+
         SubmitActionForType(type);
     }
+
+    // ── Skill sub-menu ─────────────────────────────────────────────────────
 
     private void OpenSkillMenu(RuntimeCharacterState actor)
     {
@@ -398,63 +556,266 @@ public class CombatUI : MonoBehaviour
         bool isActive = (_currentActor == combatManager.ActiveHeroine);
         ActionType type = isActive ? ActionType.Skill : ActionType.AssistAbility;
 
-        var action = new CombatAction
+        if (AbilityNeedsEnemyTarget(ability))
         {
-            type    = type,
-            actor   = _currentActor,
-            target  = PickDefaultTarget(ability),
-            ability = ability
-        };
-
-        CommitAction(action);
+            // Enter click-to-select; callback builds and commits the action.
+            EnterTargetSelection(target =>
+            {
+                var action = new CombatAction
+                {
+                    type    = type,
+                    actor   = _currentActor,
+                    target  = target,
+                    ability = ability
+                };
+                CommitAction(action);
+            });
+        }
+        else
+        {
+            // Healing / Buff: resolve target immediately, no click needed.
+            var action = new CombatAction
+            {
+                type    = type,
+                actor   = _currentActor,
+                target  = PickNonEnemyTarget(ability),
+                ability = ability
+            };
+            CommitAction(action);
+        }
     }
+
+    // ── Item sub-menu ──────────────────────────────────────────────────────
+
+    private void OpenItemMenu()
+    {
+        if (itemMenuRoot == null) return;
+        itemMenuRoot.SetActive(true);
+
+        // Disable main action buttons while item menu is open
+        SetAllButtonsInteractable(false);
+
+        var inventory = ItemManager.Instance != null
+            ? ItemManager.Instance.GetInventory()
+            : new List<ItemSO>();
+
+        for (int i = 0; i < inventorySlots.Length; i++)
+        {
+            if (inventorySlots[i] == null) continue;
+
+            bool hasItem = (i < inventory.Count) && (inventory[i] != null);
+            inventorySlots[i].SetActive(hasItem);
+
+            if (!hasItem) continue;
+
+            var item = inventory[i];
+            bool usable = item.usableInCombat;
+
+            if (inventoryNameTexts[i] != null)
+                inventoryNameTexts[i].text = item.displayName;
+            if (inventoryQtyTexts[i] != null)
+                inventoryQtyTexts[i].text = ""; // quantity not tracked per-SO; clear for now
+            if (inventoryIcons[i] != null && item.itemIcon != null)
+                inventoryIcons[i].sprite = item.itemIcon;
+
+            if (_inventorySlotButtons[i] != null)
+                _inventorySlotButtons[i].interactable = usable;
+        }
+    }
+
+    private void OnItemChosen(int slotIndex)
+    {
+        var inventory = ItemManager.Instance != null
+            ? ItemManager.Instance.GetInventory()
+            : new List<ItemSO>();
+
+        if (slotIndex >= inventory.Count || inventory[slotIndex] == null) return;
+        var item = inventory[slotIndex];
+
+        // Belt-and-suspenders guard (button should already be greyed)
+        if (!item.usableInCombat) return;
+
+        // Close item menu before proceeding
+        if (itemMenuRoot != null) itemMenuRoot.SetActive(false);
+
+        if (item.target == ItemTarget.SingleEnemy || item.target == ItemTarget.AllEnemies)
+        {
+            // Need player to click an enemy target (AllEnemies still picks a target to satisfy
+            // ItemManager.UseItem signature — CombatManager.ResolveUseItem broadcasts to all).
+            _pendingItem = item;
+            EnterTargetSelection(target =>
+            {
+                var action = new CombatAction
+                {
+                    type   = ActionType.UseItem,
+                    actor  = _currentActor,
+                    target = target,   // AllEnemies: CombatManager broadcasts; target used as fallback
+                    item   = _pendingItem
+                };
+                _pendingItem = null;
+                CommitAction(action);
+            });
+        }
+        else
+        {
+            // Self, SingleAlly, AllAllies — no enemy click needed.
+            var action = new CombatAction
+            {
+                type   = ActionType.UseItem,
+                actor  = _currentActor,
+                target = ResolveItemTarget(item),
+                item   = item
+            };
+            CommitAction(action);
+        }
+    }
+
+    private RuntimeCharacterState ResolveItemTarget(ItemSO item)
+    {
+        return item.target switch
+        {
+            ItemTarget.Self       => _currentActor,
+            ItemTarget.SingleAlly => combatManager.ActiveHeroine,
+            ItemTarget.AllAllies  => null,   // CombatManager.ResolveUseItem broadcasts to all
+            ItemTarget.AllEnemies => null,   // CombatManager.ResolveUseItem broadcasts to all
+            _                     => _currentActor
+        };
+    }
+
+    // ── Submit ─────────────────────────────────────────────────────────────
 
     private void SubmitActionForType(ActionType type)
     {
         RuntimeCharacterState target = null;
 
-        // Only attack-style actions need a target; grapple/support actions don't.
         switch (type)
         {
             case ActionType.Attack:
             case ActionType.AssistAttack:
-                target = FirstAliveEnemy();
-                break;
+                int aliveCount = CountAliveEnemies();
+                if (aliveCount <= 1)
+                {
+                    // Single enemy (or none) — auto-select.
+                    target = FirstAliveEnemy();
+                    var action = new CombatAction
+                    {
+                        type   = type,
+                        actor  = _currentActor,
+                        target = target
+                    };
+                    CommitAction(action);
+                }
+                else
+                {
+                    // Multiple enemies — require player click.
+                    ActionType capturedType = type;
+                    EnterTargetSelection(t =>
+                    {
+                        var action = new CombatAction
+                        {
+                            type   = capturedType,
+                            actor  = _currentActor,
+                            target = t
+                        };
+                        CommitAction(action);
+                    });
+                }
+                return;
 
             case ActionType.SwapIn:
                 // actor IS the support heroine to swap in; no separate target field needed
                 break;
         }
 
-        var action = new CombatAction
+        var plainAction = new CombatAction
         {
             type   = type,
             actor  = _currentActor,
             target = target
         };
-
-        CommitAction(action);
+        CommitAction(plainAction);
     }
 
     private void CommitAction(CombatAction action)
     {
         _awaitingInput = false;
         SetAllButtonsInteractable(false);
-        if (skillMenuRoot != null) skillMenuRoot.SetActive(false);
+        if (skillMenuRoot  != null) skillMenuRoot.SetActive(false);
+        if (specialMenuRoot != null) specialMenuRoot.SetActive(false);
+        if (itemMenuRoot   != null) itemMenuRoot.SetActive(false);
+        ExitTargetSelection();
         combatManager.SubmitAction(action);
     }
 
-    // ── Target selection ───────────────────────────────────────────────────
-    // TODO: Replace with a proper click-to-select target system.
-    // For now, all attack/skill actions auto-target the first alive enemy.
+    // ── Target selection (click-to-select enemy) ───────────────────────────
 
-    private RuntimeCharacterState PickDefaultTarget(CharacterAbilitySO ability)
+    private void EnterTargetSelection(System.Action<RuntimeCharacterState> callback)
     {
-        // Healing abilities target the Active heroine (or actor if no Active)
+        _selectingTarget   = true;
+        _onTargetSelected  = callback;
+
+        Log("  [Select a target]");
+
+        var enemies = combatManager.Enemies;
+        for (int i = 0; i < _enemyClickButtons.Length; i++)
+        {
+            if (_enemyClickButtons[i] == null) continue;
+
+            bool alive = (i < enemies.Count) && enemies[i].IsAlive;
+            _enemyClickButtons[i].interactable = alive;
+
+            // Highlight alive enemy name text
+            if (alive && enemyNameText[i] != null)
+                enemyNameText[i].color = TargetHighlightColour;
+        }
+    }
+
+    private void ExitTargetSelection()
+    {
+        _selectingTarget  = false;
+        _onTargetSelected = null;
+
+        // Disable all enemy click buttons and restore name text colours.
+        for (int i = 0; i < _enemyClickButtons.Length; i++)
+        {
+            if (_enemyClickButtons[i] != null)
+                _enemyClickButtons[i].interactable = false;
+
+            if (enemyNameText[i] != null)
+                enemyNameText[i].color = _enemyNameOriginalColours[i];
+        }
+    }
+
+    private void OnEnemyPanelClicked(int enemyIndex)
+    {
+        if (!_selectingTarget) return;
+
+        var enemies = combatManager.Enemies;
+        if (enemyIndex >= enemies.Count || !enemies[enemyIndex].IsAlive) return;
+
+        var selected = enemies[enemyIndex];
+        var callback = _onTargetSelected;
+
+        ExitTargetSelection();
+        callback?.Invoke(selected);
+    }
+
+    // ── Target helpers ─────────────────────────────────────────────────────
+
+    /// <summary>Returns true when the ability should target an enemy (needs click-select).</summary>
+    private bool AbilityNeedsEnemyTarget(CharacterAbilitySO ability)
+    {
+        return ability.abilityType != CharacterAbilitySO.AbilityType.Healing
+            && ability.abilityType != CharacterAbilitySO.AbilityType.Healing;
+    }
+
+    /// <summary>Resolves a non-enemy target for healing/buff abilities.</summary>
+    private RuntimeCharacterState PickNonEnemyTarget(CharacterAbilitySO ability)
+    {
         if (ability.abilityType == CharacterAbilitySO.AbilityType.Healing)
             return combatManager.ActiveHeroine;
 
-        return FirstAliveEnemy();
+        return _currentActor; // Buff defaults to self
     }
 
     private RuntimeCharacterState FirstAliveEnemy()
@@ -462,6 +823,14 @@ public class CombatUI : MonoBehaviour
         foreach (var e in combatManager.Enemies)
             if (e.IsAlive) return e;
         return null;
+    }
+
+    private int CountAliveEnemies()
+    {
+        int count = 0;
+        foreach (var e in combatManager.Enemies)
+            if (e.IsAlive) count++;
+        return count;
     }
 
     #endregion
@@ -474,6 +843,7 @@ public class CombatUI : MonoBehaviour
     {
         RefreshHeroinePanels();
         RefreshEnemyPanels();
+        RefreshInventorySlots();
     }
 
     private void RefreshHeroinePanels()
@@ -484,11 +854,6 @@ public class CombatUI : MonoBehaviour
         {
             if (i >= heroines.Count) break;
             var h = heroines[i];
-
-            // Reorder display: active heroine always in slot 0 visually.
-            // DECISION: we show heroines in party-slot order (0,1,2) and
-            // highlight the active slot with activeIndicator instead of
-            // reordering panels. Simpler; revisit if UI needs reorder.
 
             bool isActive = (h == combatManager.ActiveHeroine);
             string prefix = isActive ? "► " : "  ";
@@ -501,8 +866,12 @@ public class CombatUI : MonoBehaviour
 
             if (heroineHPBar[i]      != null)
                 heroineHPBar[i].fillAmount = h.maxHP > 0 ? (float)h.currentHP / h.maxHP : 0f;
+            if (heroineMPBar[i]      != null)
+                heroineMPBar[i].fillAmount = h.maxMP > 0 ? (float)h.currentMP / h.maxMP : 0f;
             if (heroineResolveBar[i] != null)
                 heroineResolveBar[i].fillAmount = h.maxResolve > 0 ? (float)h.resolve / h.maxResolve : 0f;
+            if (heroineCorruptBar[i] != null)
+                heroineCorruptBar[i].fillAmount = h.maxResolve > 0 ? (float)h.corruption / h.maxResolve : 0f;
         }
     }
 
@@ -520,8 +889,40 @@ public class CombatUI : MonoBehaviour
             var e = enemies[i];
             if (enemyNameText[i] != null) enemyNameText[i].text = e.IsAlive ? e.displayName : $"[Dead] {e.displayName}";
             if (enemyHPText[i]   != null) enemyHPText[i].text   = $"HP {e.currentHP}/{e.maxHP}";
+            if (enemyMPText[i]   != null) enemyMPText[i].text   = $"MP {e.currentMP}/{e.maxMP}";
+            if (enemyCORText[i]  != null) enemyCORText[i].text   = $"COR {e.corruption}";
             if (enemyHPBar[i]    != null)
                 enemyHPBar[i].fillAmount = e.maxHP > 0 ? (float)e.currentHP / e.maxHP : 0f;
+            if (enemyMPBar[i]    != null)
+                enemyMPBar[i].fillAmount = e.maxMP > 0 ? (float)e.currentMP / e.maxMP : 0f;
+            if (enemyCORBar[i]   != null)
+                enemyCORBar[i].fillAmount = e.maxResolve > 0 ? (float)e.corruption / e.maxResolve : 0f;
+        }
+    }
+
+    /// <summary>
+    /// Populates inventory slot labels from ItemManager.
+    /// Called from RefreshAllStats() so the item menu stays current.
+    /// Also disables slot GameObjects for empty slots.
+    /// </summary>
+    private void RefreshInventorySlots()
+    {
+        if (ItemManager.Instance == null) return;
+
+        var inventory = ItemManager.Instance.GetInventory();
+        for (int i = 0; i < inventorySlots.Length; i++)
+        {
+            if (inventorySlots[i] == null) continue;
+
+            bool hasItem = (i < inventory.Count) && (inventory[i] != null);
+            inventorySlots[i].SetActive(hasItem);
+
+            if (!hasItem) continue;
+
+            var item = inventory[i];
+            if (inventoryNameTexts[i] != null) inventoryNameTexts[i].text = item.displayName;
+            if (inventoryIcons[i] != null && item.itemIcon != null)
+                inventoryIcons[i].sprite = item.itemIcon;
         }
     }
 
@@ -543,6 +944,23 @@ public class CombatUI : MonoBehaviour
             if (btn != null) btn.interactable = state;
         foreach (var btn in skillButtons)
             if (btn != null) btn.interactable = state;
+        foreach (var btn in specialButtons)
+            if (btn != null) btn.interactable = state;
+        // Inventory slot buttons are managed separately (only active in item menu)
+    }
+
+    private void ToggleLogBody()
+    {
+        if (logBodyPanel == null) return;
+        logBodyPanel.SetActive(!logBodyPanel.activeSelf);
+
+        // Update toggle button label
+        if (logToggleButton != null)
+        {
+            var label = logToggleButton.GetComponentInChildren<Text>();
+            if (label != null)
+                label.text = logBodyPanel.activeSelf ? "▼" : "▲";
+        }
     }
 
     private void Log(string line)

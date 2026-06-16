@@ -413,6 +413,7 @@ Layers/      → LayerGenerationProfileSO
 | V | Enemy-support abilities (heals, buffs targeting ally enemies) use targetIsHeroine = false on the SO; AI passes enemy RuntimeCharacterState as target |
 | W | Forced swap on KO fires OnForcedSwapRequired event and pauses in AwaitingForcedSwap phase — player must choose, same pattern as OnAwaitingAction |
 | X | Blood Nun phase transition is HP-based (below 50%), not round-based. _bloodNunHealedPhase2 resets in StartEncounter() |
+| Y | RunStateManager mismatch: spec assumed CurrentBloom/SpendBloom() but actual file only has BloomEarned (get-only) and AddBloom(). RefugeManager owns _currentBloom counter locally and seeds from BloomEarned. Two [RSM-SYNC] comments mark where to swap when SpendBloom() is added to RunStateManager. |
 
 ---
 
@@ -467,9 +468,10 @@ Layers/      → LayerGenerationProfileSO
 ### Near-Term (Before Layer 1 Is Fully Playable)
 - Assist Ability cooldown: two-line fix already specified (see Section 17 / prior chat)
 - Remaining 41 StatusEffectSOs auto-generated via StatusEffectAssetGenerator
-- Room event UI (subscribe to OnEventRoomEntered, display choices, call SubmitEventChoice)
+- Room event UI: done (EventUI.cs)
 - Map visualization UI: done (MapUI.cs + MapNodeView.cs)
 - Combat completion wiring: done (CombatRoomBridge.cs)
+- Refuge Hub: done (RefugeManager.cs + RefugeUI.cs)
 
 ### Later Passes (Designed, Not Yet Built)
 - Item system (including grapple-breaking items)
