@@ -602,6 +602,7 @@ Layers/      → LayerGenerationProfileSO
 - Later-layer abilities targeting Support heroines directly
 - Stats for heroines 4–15
 - Room event system details
+- Repeat visit text handling: abbreviated text on revisit (one-line summary + "read again" option) as default; full-skip toggle in settings for veteran players. Most `run_state` seen-flags already in place — hotspot system needs a check on those flags to branch text. Scripted scenes (recruitment, boss preambles) need separate `save_slot` seen-flags.
 - Ending condition specifics for all 7 endings
 
 ---
