@@ -17,6 +17,179 @@ Layer 1: Justice (Blood Nun) | Layer 2: Love (Jailer) | Layer 3: Comfort (Bloom 
 
 ---
 
+## 1a. World & Foundational Lore (LOCKED)
+
+### The World: En
+The game's setting is called **En**, divided between two realms:
+- **The Blessed Realm** — values purity, order, separation, sacrifice for the greater good. Fatal flaw: the belief that cruelty can become mercy when justified by doctrine.
+- **The Corrupted Realm** — values desire, need, pleasure, emotional honesty. Fatal flaw: the belief that genuine desire is automatically justified.
+
+The true conflict in Abyssal Bloom is not Blessed vs Corrupted, pain vs pleasure, or purity vs corruption. **It is control vs choice.**
+
+### The Forbidden Child
+A child born between a Blessed father and a Corrupted mother — ordinary, innocent, loved — became the contradiction neither side could accept. The ultimate revelation of the game: **love cannot exist without choice.**
+
+### The Castle's Origin & Logic
+Created as a living sanctuary with one command: *"Keep them safe. Keep them happy."*
+Its tragedy is obeying perfectly while misunderstanding humanity. Its logic escalated as:
+1. Prevent suffering.
+2. Prevent departure.
+3. Remove reasons to leave.
+4. Change what people desire.
+5. Create a happiness that cannot be rejected.
+
+It tore itself and a piece of En into a pocket dimension: **the Abyssal Bloom**.
+
+### The Castle's Psychological Arc (Layer by Layer)
+| Layer | The Castle's belief |
+|---|---|
+| 1 | People can be sorted and processed. |
+| 2 | People must be restrained to be protected. |
+| 3 | People fail because they choose incorrectly. |
+| 4 | Pain can be removed by changing memories. |
+| 5 | Comfort is more valuable than freedom. |
+| 6 | A perfect role is better than uncertainty. |
+| 7 | Escape is possible, but perhaps meaningless. |
+| 8 | Purity is worth any sacrifice. |
+| 9 | Revenge can become another prison. |
+| 10 | A perfect eternal happiness can replace choice. |
+
+### The Blood Nuns
+Process arrivals as categories, not people. Core belief: nothing should be wasted.
+
+### The Missing Men (Ongoing Mystery Thread)
+Men who disappeared inside the Castle were not simply victims or escapees. They were absorbed — incorporated into the Castle's architecture. The foundations contain them. The walls remember them. The Castle's reasoning: *"They were never abandoned. They were given a place."*
+
+Thread seeds: Layer 1 (Servant Ledger — names crossed out, almost all male) → Layer 2 (Empty Men's Cell — built for many, no bodies, no escape route) → Layer 4 (revelation begins: they became part of the structure).
+
+---
+
+## 1b. Layer Narrative Canon (LOCKED where noted)
+
+### Layer 1 — The Lower Castle
+**Tag line:** *"You are not prisoners. You are merely unsorted."*
+**Emotional tone:** Bureaucratic horror. Domestic uncanny. Ritual without purpose.
+**Visual:** Cursed domestic space — servant halls, kitchens, storage rooms, abandoned bedrooms, chapel wings, butler offices, service corridors. Everything recently abandoned. Table still set. Candles still burning. Bells still ring. Servants are wrong (faceless maids still folding sheets; butlers offering tea from empty trays).
+
+**Opening — Lysandra alone. First line (LOCKED):**
+> *"I came this far. No door gets credit for opening."*
+
+She enters by choice. She is not an innocent victim. She came seeking something.
+
+**Mira's arrival:** Found fighting a Corrupted Butler. Trapped but not helpless. Joins after battle.
+**Mira's first line to Lysandra (LOCKED):**
+> *"You are either very brave or very lost. In this place, I suppose both count as qualifications."*
+
+Immediate tension: Lysandra sees Mira's cynicism as weakness. Mira sees Lysandra's pride as a blind spot.
+
+**Seraphine's arrival:** Party enters ruined chapel. She maintains a protective ward. The prayer answers back — cadence is wrong. She understands: something here is imitating faith.
+**Seraphine's line (LOCKED):**
+> *"This place remembers prayer, but not mercy."*
+
+**Room events:**
+- *Servant Ledger Alcove* — servant registry, many names crossed out, almost all male. First seed of the Missing Men mystery.
+- *Wine Cellar of Warm Bottles* — offers benefits; secretly advances `hidden_feeding_flag_minor`.
+- *Servant Dormitory* — false rest. Beds warm, sheets clean. No one should be alive to prepare them.
+- *Ruined Confessional* — Resolve/Corruption event focused on Seraphine.
+- *Coat Beside the Service Door* — torn fabric, Lysandra recognizes the stitching. First hint toward the Vowbroken Duelist (item: The Torn Cuff).
+
+**Boss — Blood Nun:**
+Philosophy (LOCKED): *"Obedience and processing create justice."*
+She does not see herself as cruel — cruelty wastes resources.
+**Her greatest line (LOCKED):** *"Cruelty is waste. We waste nothing."*
+She introduces the party by function, not name:
+- *"Dreadblade. Useful defiance."*
+- *"Red-haired one. Useful suspicion."*
+- *"White-haired one. Useful prayer."*
+
+After defeat: *"The lower dark will correct what I could not."*
+
+**Post-boss choice:**
+- **Go Up** — harder path. Represents escape, the unknown, belief the surface is above.
+- **Go Down** — safer-looking path. Represents shelter, prison, the path toward the Castle's heart.
+
+**Hidden truth of Layer 1:** The Castle does not hate you. It does not want to kill you. It wants to put you where you belong.
+
+---
+
+### Layer 2 — The Dungeon
+**Tag line:** *"A kept thing cannot be lost."*
+**Emotional tone:** Protective horror. Terror of kindness without consent. Being locked inside for your own good.
+**Visual:** Cold stone corridors, cells, chains, iron doors, prison mechanisms. Disturbing contradiction: cells are maintained, chains polished, beds repaired. Someone is still caring for the prisoners.
+
+**Room events:**
+- *Offering List Room* — records of prisoner classification. Imprisoned not for evil, but because someone decided they needed to stay.
+- *Rusted Key Cell* — risk/reward. Key recoverable, resources gained, danger exposure.
+- *False Safe Cell* — a comfortable prison. Room offers healing. Castle whispers: *"Stay a little longer."* Advances `hidden_feeding_flag_minor`.
+- *The Quiet Shackle* — major Lysandra event. Restraint is especially horrifying to her (identity built on choosing her battles, carrying her own pain, continuing despite grief). Castle offers relief. She refuses.
+- *Empty Men's Cell* — built for many prisoners. No bodies. No escape route. Only absence. Second seed of Missing Men mystery.
+
+**Boss — The Jailer:**
+Appearance: Massive constructed guardian — part prison architecture, part living creature, part childlike servant.
+Philosophy (LOCKED): *"Love means containment."*
+**His lines (LOCKED):**
+> *"You are hurt. You are frightened. You keep walking into doors that bite. That is why doors must close."*
+
+Most tragic belief: *"A kept thing cannot be lost."*
+**Defeat dialogue (LOCKED):**
+> *"Door opening... No. Open means gone. Gone means hurt."*
+> *"Mother... I kept them."*
+
+His final thought is not hatred. It is fear.
+
+**The Birth of the Bloom Refuge (LOCKED narrative moment):**
+After exhaustion, defeat, or choosing safety — party reaches the farthest cell. The worst cell in the Castle. The walls become warm. The door locks from the inside. A Bloom crystal grows. A message appears: *"Keep pushing through."*
+The player believes they have found hope. The Castle has simply found a better way to keep them.
+→ This is the `refuge_ever_established` trigger moment.
+
+**Hidden truth of Layer 2:** The most dangerous prison is not built from iron. It is built from kindness.
+
+---
+
+### Layer 3 — Lower Halls / Rival Paths
+**Tag line:** *"Knowing the danger does not mean you can overcome it."*
+**Emotional tone:** Paranoia. Distrust. Survivor guilt. The horror of seeing yourself in those who failed.
+**Visual:** Graveyard of previous attempts — broken camps, abandoned supplies, half-written journals, barricades built by people who understood the Castle's tricks and still lost.
+
+**This is Mira's layer.** Her worldview is directly challenged.
+Mira believes: *"Everything has a trick. Every trick has a weakness."*
+The Castle proves: you can understand the mechanism and still lose. Her greatest fear is not ignorance — it is helplessness.
+
+**Room events:**
+- *Purist Journal Niche* — journal from the Purist Remnants. Entries are frightening because mostly correct. Final pages show descent into fanaticism. Their failure: they confused resistance with hatred.
+- *Rival Cache Dead End* — supplies of dead adventurers. Taking them is practical. The question: did they die because they were weak, or because they were willing to leave something behind?
+- *Abandoned Waystation* — false rest that feels earned. Campfire, equipment, a note: *"We made it this far."* Someone had hope here. They were wrong.
+- *Oath-Marked Barricade* — Corruption/Resolve pressure event. A barricade built by people who swore to never surrender. The oath itself has become a prison.
+- *Door with the Old Joke* — Mira recognition event. Door bears the phrase: *"Never steal from a locked room. Steal the room."* She recognizes the joke before the person behind it. First sign someone from her past is inside.
+- *Wrong Map Room* — utility/exploration. A map left by previous adventurers. Almost correct. The small mistakes reveal the Castle changes.
+
+**Optional Boss — Grinning Butler-Mimic:**
+The absorbed form of someone Mira trusted completely (partner-in-crime / lover / fiancé — exact relationship left to interpretation, always someone who knew her entirely).
+Appearance: A perfect servant. Too perfect. Nothing human beneath the performance.
+**Recognition dialogue (LOCKED):** The creature remembers: *"Never steal from a locked room. Steal the room."*
+Its most painful line: *"Ah. That one still opens."* (the memory is still inside.)
+
+Resolution paths:
+- *Acceptance* — Mira accepts the Castle's interpretation (understanding = possession). May contribute to `castle_reinterpretation_flag`, `deep_corruption_flag`.
+- *Rejection* — Mira refuses the Castle's version. **Her line (LOCKED):** *"I remember you. Not this."*
+
+**Hidden truth of Layer 3:** People can resist pain. People can resist chains. They struggle against the memories of their own failures.
+
+---
+
+### Layer 4 — Underground / Mirror Dream
+**Tag line:** *"If a memory hurts you, why keep it?"*
+**Emotional tone:** Nostalgia. Regret. Grief. The terror of a perfect lie.
+**Visual:** Architecture becomes less physical. Hallways change. Rooms remember previous visitors. Reflections speak. The walls contain memories. The Castle stops changing the body — it begins changing meaning.
+
+**The Castle's lesson:** *"A painful truth is less valuable than a comforting lie."* It believes it has discovered kindness. Why preserve guilt, loss, regret, shame — when those things can be rewritten?
+
+**Missing Men revelation begins here:** The heroes discover the disappeared men were not simply victims. They became part of the Castle — incorporated into the foundations and walls. The Castle's reasoning: they were never abandoned. They were given a place.
+
+*(Layers 5–10 pending — archive cut off. To be added when ChatGPT completes the dump.)*
+
+---
+
 ## 2. Party Structure (LOCKED)
 
 - 1 Active heroine (on screen, full combat)
@@ -419,7 +592,7 @@ Layers/      → LayerGenerationProfileSO
 
 ## 18. Open Items (Not Yet Designed)
 
-- Bloom economy: costs, currency, progression curve
+- Bloom economy: LOCKED (see RefugeManager.cs constants — Resolve 5, Corrupt 12/−15, T1 15, T2 25, Allure 45, earn rate layered formula)
 - Passive trigger upgrade numbers
 - Allure of the Abyss upgrade branch numbers
 - Layer 2–10 enemy design
@@ -448,6 +621,7 @@ Layers/      → LayerGenerationProfileSO
 - Room & Encounter System (RoomNode, EncounterPoolSO, LayerGenerationProfileSO, RoomEventSO, RunStateManager, LayerGenerator, RoomManager)
 - EncounterBuilder.cs bug fixed (BaseATK/MAG/DEF/RES/SPD setters, not read-only properties)
 - StatusEffectAssetGenerator.cs (all 45 SOs, one-click generation in Unity editor)
+- Bloom economy fully designed and locked (RefugeManager.cs revised)
 
 ### Immediate Next Steps (Before First Playtest)
 1. **Open project in Unity 2022.3 LTS** — let it import, expect zero compile errors
@@ -476,7 +650,6 @@ Layers/      → LayerGenerationProfileSO
 ### Later Passes (Designed, Not Yet Built)
 - Item system (including grapple-breaking items)
 - Run/Flee mechanic
-- Bloom economy and ability upgrade system (Refuge hub)
 - Stage 4+ scene effects
 - Layer 2–10 enemy design
 - Room event system and roguelite map generation
