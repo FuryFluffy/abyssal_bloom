@@ -599,23 +599,27 @@ Layers/      → LayerGenerationProfileSO
 | U | ResolveAttack abilities also apply baseCorruptionGain if non-zero (no separate enum value needed — one field, one ability type) |
 | X | Blood Nun phase transition is HP-based (below 50%), not round-based. _bloodNunHealedPhase2 resets in StartEncounter() |
 | Y | ✅ RESOLVED — RunStateManager now has `CurrentBloom` (seeds from BloomEarned on ReturnToRefuge) and `SpendBloom(int amount)`. RefugeManager uses `RunStateManager.Instance.CurrentBloom` and `SpendBloom()` directly. |
+| Z1 | Passive trigger Tier 1 = stronger effect. T2 branches: Lysandra (Blade Frenzy: threshold 20%→10% / Retaliating Edge: power Very Low→Medium), Mira (Full Immunity: negate 50%→100% / Reactive Poison: on negate 40% apply Poison to attacker), Seraphine (Preemptive Vigil: threshold 35%→50% / Restorative Aura: heal +4 Resolve). |
+| Z2 | Allure of the Abyss tiers: T1 45 Bloom → Special actions restore 5% max HP. T2 70 Bloom → +5% MP restored + grapple Resolve damage −25% (all stages). T3 100 Bloom → +ATK/DEF buff 1 turn on Special + grapple Resolve damage −50% (replaces −25%). Corruption gain unchanged at all tiers. Same Special action pool across all heroines — heroine-specific sprites only. |
+| Z3 | 100 Corruption: ActionType.Attack suppressed. Active heroine forced to use Skills or Special only. Attack button hidden/disabled when corruption >= 100. |
+| Z4 | Allure Special actions are shared across all heroines (same action pool). Each heroine has unique cut-in sprites per action. Dialogue per action deferred to h-scene system design pass. |
 
 ---
 
 ## 18. Open Items (Not Yet Designed)
 
 - Bloom economy: LOCKED (see RefugeManager.cs constants — Resolve 5, Corrupt 12/−15, T1 15, T2 25, Allure 45, earn rate layered formula)
-- Passive trigger upgrade numbers
-- Allure of the Abyss upgrade branch numbers
-- Layer 2–10 enemy design
-- Item system (including grapple-breaking items)
-- 100 Corruption mechanical effects
+- Passive trigger upgrade numbers — ✅ LOCKED (see Decision Z1)
+- Allure of the Abyss upgrade branch numbers — ✅ LOCKED (see Decision Z2)
+- 100 Corruption mechanical effects — ✅ LOCKED (see Decision Z3)
+- Layer 2–10 enemy design (Layer 2 Jailer + standard enemies locked, Layers 3–10 pending)
 - Stage 4+ enemy-specific scene effects
 - Later-layer abilities targeting Support heroines directly
 - Stats for heroines 4–15
-- Room event system details
 - Repeat visit text handling: abbreviated text on revisit (one-line summary + "read again" option) as default; full-skip toggle in settings for veteran players. Most `run_state` seen-flags already in place — hotspot system needs a check on those flags to branch text. Scripted scenes (recruitment, boss preambles) need separate `save_slot` seen-flags.
 - Ending condition specifics for all 7 endings
+- HSceneAssetSO architecture + dialogue system
+- Allure Special action list (what actions exist, what each does per tier)
 
 ---
 
