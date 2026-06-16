@@ -603,6 +603,7 @@ Layers/      → LayerGenerationProfileSO
 | Z2 | Allure of the Abyss tiers: T1 45 Bloom → Special actions restore 5% max HP. T2 70 Bloom → +5% MP restored + grapple Resolve damage −25% (all stages). T3 100 Bloom → +ATK/DEF buff 1 turn on Special + grapple Resolve damage −50% (replaces −25%). Corruption gain unchanged at all tiers. Same Special action pool across all heroines — heroine-specific sprites only. |
 | Z3 | 100 Corruption: ActionType.Attack suppressed. Active heroine forced to use Skills or Special only. Attack button hidden/disabled when corruption >= 100. |
 | Z4 | Allure Special actions are shared across all heroines (same action pool). Each heroine has unique cut-in sprites per action. Dialogue per action deferred to h-scene system design pass. |
+| Z5 | Seven endings locked (replaces all previous GPT-generated ending names). IDs: unfed_bloom, neverending_cycle, battery_truth, escape_selective, kill_the_castle, become_the_castle_reign, become_the_castle_free (fallback). Priority order and theme locked. Flag conditions are stubs pending flag audit. EvaluateEnding(int currentLayer) signature: neverending_cycle only fires at Layer 9. |
 
 ---
 
@@ -617,7 +618,7 @@ Layers/      → LayerGenerationProfileSO
 - Later-layer abilities targeting Support heroines directly
 - Stats for heroines 4–15
 - Repeat visit text handling: abbreviated text on revisit (one-line summary + "read again" option) as default; full-skip toggle in settings for veteran players. Most `run_state` seen-flags already in place — hotspot system needs a check on those flags to branch text. Scripted scenes (recruitment, boss preambles) need separate `save_slot` seen-flags.
-- Ending condition specifics for all 7 endings
+- Ending condition specifics for all 7 endings — IDs and themes locked (see Z5), flag conditions still STUB pending flag audit
 - HSceneAssetSO architecture + dialogue system
 - Allure Special action list (what actions exist, what each does per tier)
 
@@ -660,7 +661,7 @@ Layers/      → LayerGenerationProfileSO
 ### Later Passes (Designed, Not Yet Built)
 - Layer 3–10 enemy design
 - Stage 4+ scene effects
-- Ending condition specifics for all 7 endings
+- Ending condition specifics for all 7 endings — IDs and themes locked (see Z5), flag conditions still STUB pending flag audit
 - Stats for heroines 4–15
 - 100 Corruption mechanical effects
 - Allure of the Abyss upgrade branch numbers
