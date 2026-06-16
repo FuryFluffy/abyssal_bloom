@@ -31,6 +31,10 @@ public static class CoreAssetGenerator
     private const string ENEMIES      = ROOT + "/Enemies/Layer1";
     private const string ABILITIES_H  = ROOT + "/Abilities/Heroines";
     private const string ABILITIES_E  = ROOT + "/Abilities/Enemies/Layer1";
+
+    // Layer 2 folders
+    private const string ENEMIES_L2   = ROOT + "/Enemies/Layer2";
+    private const string ABILITIES_E2 = ROOT + "/Abilities/Enemies/Layer2";
     private const string TABLES       = ROOT + "/EnemyTables";
     private const string ENCOUNTERS   = ROOT + "/Encounters";
     private const string LAYERS       = ROOT + "/LayerProfiles";
@@ -170,9 +174,10 @@ public static class CoreAssetGenerator
 
         CreateAbility(ABILITIES_H, "battle_cry", "Battle Cry",
             "Lysandra's assist ability. Buffs active heroine ATK +3 for 2 turns.",
-            type: CharacterAbilitySO.AbilityType.Healing,
+            type: CharacterAbilitySO.AbilityType.Buff,
             power: PowerBand.Medium, mpCost: 0,
-            statusId: "atk_up", statusChance: 100);
+            statusId: "atk_up", statusChance: 100,
+            targetIsHeroine: true);
 
         // ── Mira Voss — active abilities ──────────────────────────────────
         CreateAbility(ABILITIES_H, "poisoned_dart", "Poisoned Dart",
@@ -195,9 +200,10 @@ public static class CoreAssetGenerator
 
         CreateAbility(ABILITIES_H, "smelling_salts_assist", "Smelling Salts",
             "Mira's assist ability. Restores 5 Resolve to Active heroine.",
-            type: CharacterAbilitySO.AbilityType.Healing,
+            type: CharacterAbilitySO.AbilityType.Buff,
             power: PowerBand.Medium, mpCost: 0,
-            statusId: "resolve_restore_5", statusChance: 100);
+            statusId: "resolve_restore_5", statusChance: 100,
+            targetIsHeroine: true);
 
         // ── Seraphine — active abilities ──────────────────────────────────
         CreateAbility(ABILITIES_H, "holy_light", "Holy Light",
@@ -219,9 +225,10 @@ public static class CoreAssetGenerator
 
         CreateAbility(ABILITIES_H, "shield_of_faith", "Shield of Faith",
             "Seraphine's assist ability. Buffs active heroine RES +3 for 2 turns.",
-            type: CharacterAbilitySO.AbilityType.Healing,
+            type: CharacterAbilitySO.AbilityType.Buff,
             power: PowerBand.Medium, mpCost: 0,
-            statusId: "res_up", statusChance: 100);
+            statusId: "res_up", statusChance: 100,
+            targetIsHeroine: true);
 
         Debug.Log("[CoreAssetGenerator] Heroine abilities created.");
     }
@@ -329,92 +336,103 @@ public static class CoreAssetGenerator
         CreateAbility(ABILITIES_E, "shambling_strike", "Shambling Strike",
             "Hollow Servant normal attack. Medium physical.",
             type: CharacterAbilitySO.AbilityType.Physical,
-            power: PowerBand.Medium, mpCost: 0, hitChance: 90);
+            power: PowerBand.Medium, mpCost: 0, hitChance: 90,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "clutching_grab", "Clutching Grab",
             "Hollow Servant grapple attempt. 75% hit.",
             type: CharacterAbilitySO.AbilityType.Grapple,
             power: PowerBand.Medium, mpCost: 0, hitChance: 75,
-            isGrappleInitiator: true);
+            isGrappleInitiator: true, targetIsHeroine: true);
 
         // ── Knife Footman ─────────────────────────────────────────────────
         CreateAbility(ABILITIES_E, "quick_slash", "Quick Slash",
             "Knife Footman fallback attack.",
             type: CharacterAbilitySO.AbilityType.Physical,
-            power: PowerBand.Medium, mpCost: 0, hitChance: 90);
+            power: PowerBand.Medium, mpCost: 0, hitChance: 90,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "driven_thrust", "Driven Thrust",
             "Knife Footman high-power attack. Applies Bleed.",
             type: CharacterAbilitySO.AbilityType.Physical,
             power: PowerBand.High, mpCost: 3, hitChance: 85,
-            statusId: "bleed", statusChance: 40);
+            statusId: "bleed", statusChance: 40,
+            targetIsHeroine: true);
 
         // ── Prayer-Rag Novice ─────────────────────────────────────────────
         CreateAbility(ABILITIES_E, "dark_prayer", "Dark Prayer",
             "Novice magic fallback. Auto-hit.",
             type: CharacterAbilitySO.AbilityType.Magic,
-            power: PowerBand.Medium, mpCost: 0);
+            power: PowerBand.Medium, mpCost: 0,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "whisper_of_doubt", "Whisper of Doubt",
             "Combined Resolve + Corruption attack. Base 8 resolve dmg, 3 corruption.",
             type: CharacterAbilitySO.AbilityType.ResolveAttack,
             power: PowerBand.Medium, mpCost: 4,
-            baseResolveDamage: 8, baseCorruptionGain: 3);
+            baseResolveDamage: 8, baseCorruptionGain: 3,
+            targetIsHeroine: true);
 
         // ── Corrupted Butler ──────────────────────────────────────────────
         CreateAbility(ABILITIES_E, "silver_tray", "Silver Tray",
             "Butler weak fallback. Low physical.",
             type: CharacterAbilitySO.AbilityType.Physical,
-            power: PowerBand.Low, mpCost: 0, hitChance: 90);
+            power: PowerBand.Low, mpCost: 0, hitChance: 90,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "courteous_embrace", "Courteous Embrace",
             "Butler grapple attempt. 80% hit.",
             type: CharacterAbilitySO.AbilityType.Grapple,
             power: PowerBand.Medium, mpCost: 4, hitChance: 80,
-            isGrappleInitiator: true);
+            isGrappleInitiator: true, targetIsHeroine: true);
 
         // ── Red-Wax Acolyte ───────────────────────────────────────────────
         CreateAbility(ABILITIES_E, "wax_drip", "Wax Drip",
             "Acolyte magic fallback. Auto-hit.",
             type: CharacterAbilitySO.AbilityType.Magic,
-            power: PowerBand.Medium, mpCost: 0);
+            power: PowerBand.Medium, mpCost: 0,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "crimson_blessing", "Crimson Blessing",
             "Acolyte ally heal. Heals 12 HP. Targets enemy ally.",
             type: CharacterAbilitySO.AbilityType.Healing,
             power: PowerBand.Low, mpCost: 4,
-            baseHeal: 12);
+            baseHeal: 12, targetIsHeroine: false);
 
         CreateAbility(ABILITIES_E, "ember_ward", "Ember Ward",
             "Acolyte ally buff. Applies def_up_enemy (+3 DEF, 2t) to ally.",
-            type: CharacterAbilitySO.AbilityType.Healing,
+            type: CharacterAbilitySO.AbilityType.Buff,
             power: PowerBand.Medium, mpCost: 3,
-            statusId: "def_up_enemy", statusChance: 100);
+            statusId: "def_up_enemy", statusChance: 100,
+            targetIsHeroine: false);
 
         // ── Blood Nun (Boss) ──────────────────────────────────────────────
         CreateAbility(ABILITIES_E, "flagellants_lash", "Flagellant's Lash",
             "Blood Nun free spammable physical. Applies Bleed.",
             type: CharacterAbilitySO.AbilityType.Physical,
             power: PowerBand.High, mpCost: 0, hitChance: 90,
-            statusId: "bleed", statusChance: 50);
+            statusId: "bleed", statusChance: 50,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "communion", "Communion",
             "Blood Nun combined Resolve + Corruption auto-hit. Base 10 resolve, 4 corruption.",
             type: CharacterAbilitySO.AbilityType.ResolveAttack,
             power: PowerBand.Medium, mpCost: 4,
-            baseResolveDamage: 10, baseCorruptionGain: 4);
+            baseResolveDamage: 10, baseCorruptionGain: 4,
+            targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "sanctified_embrace", "Sanctified Embrace",
             "Blood Nun grapple. 85% hit.",
             type: CharacterAbilitySO.AbilityType.Grapple,
             power: PowerBand.Medium, mpCost: 6, hitChance: 85,
-            isGrappleInitiator: true);
+            isGrappleInitiator: true, targetIsHeroine: true);
 
         CreateAbility(ABILITIES_E, "blood_rite", "Blood Rite",
             "Blood Nun self-heal 15 HP. Only usable below 50% HP.",
             type: CharacterAbilitySO.AbilityType.Healing,
             power: PowerBand.Medium, mpCost: 6,
-            baseHeal: 15);   // targets self (enemy)
+            baseHeal: 15, hpThreshold: 0.5f,
+            targetIsHeroine: false);   // targets self (enemy)
 
         Debug.Log("[CoreAssetGenerator] Enemy abilities created.");
     }
@@ -570,7 +588,9 @@ public static class CoreAssetGenerator
         int baseHeal                           = 0,
         int baseResolveDamage                  = 0,
         int baseCorruptionGain                 = 0,
-        bool isGrappleInitiator                = false)
+        bool isGrappleInitiator                = false,
+        bool targetIsHeroine                   = true,
+        float hpThreshold                      = 0f)
     {
         var so = GetOrCreate<CharacterAbilitySO>(folder, id);
         so.abilityId         = id;
@@ -584,6 +604,8 @@ public static class CoreAssetGenerator
         so.baseResolveDamage = baseResolveDamage;
         so.baseCorruptionGain= baseCorruptionGain;
         so.isGrappleInitiator= isGrappleInitiator;
+        so.targetIsHeroine   = targetIsHeroine;
+        so.hpThresholdToUse  = hpThreshold;
 
         // Wire status SO if provided
         if (!string.IsNullOrEmpty(statusId))
@@ -690,5 +712,321 @@ public static class CoreAssetGenerator
             }
         }
     }
+    // ══════════════════════════════════════════════════════════════════════
+    // LAYER 2 ENTRY POINT
+    // ══════════════════════════════════════════════════════════════════════
+
+    [MenuItem("AbyssalBloom/Generate Core Layer 2 Assets")]
+    public static void GenerateLayer2()
+    {
+        EnsureFolders();
+        EnsureLayer2Folders();
+
+        GenerateLayer2Enemies();
+        GenerateLayer2EnemyAbilities();
+        GenerateLayer2EncounterPool();
+        GenerateLayer2Profile();
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        Debug.Log("[CoreAssetGenerator] All Layer 2 core assets created.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LAYER 2 ENEMIES
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void GenerateLayer2Enemies()
+    {
+        var tmpl = LoadAsset<EnemyLayerTemplateSO>(TABLES, "EnemyLayerTemplate");
+        var rank = LoadAsset<EnemyRankMultiplierSO>(TABLES, "EnemyRankMultiplier");
+        var role = LoadAsset<EnemyRoleModifierSO>  (TABLES, "EnemyRoleModifier");
+
+        if (tmpl == null || rank == null || role == null)
+        {
+            Debug.LogError("[CoreAssetGenerator] Enemy table SOs missing — run GenerateAll first.");
+            return;
+        }
+
+        // ── Standard enemies ──────────────────────────────────────────────
+        CreateEnemyL2("dungeon_warden",   "Dungeon Warden",
+            "An older model. Moves in patterns. Doesn't improvise.",
+            tmpl, rank, role,
+            rankEnum: EnemyRankMultiplierSO.Rank.Standard,
+            roleEnum: EnemyRoleModifierSO.Role.Controller,
+            tag: "male-construct",
+            oHP:50, oMP:6, oATK:9, oMAG:4, oDEF:6, oRES:5, oSPD:6);
+
+        CreateEnemyL2("pale_attendant",   "Pale Attendant",
+            "Maintains the dungeon. Attentive. Disturbingly cheerful.",
+            tmpl, rank, role,
+            rankEnum: EnemyRankMultiplierSO.Rank.Standard,
+            roleEnum: EnemyRoleModifierSO.Role.Support,
+            tag: "male-humanoid",
+            oHP:38, oMP:16, oATK:4, oMAG:9, oDEF:4, oRES:7, oSPD:8);
+
+        CreateEnemyL2("sealed_thing",     "Sealed Thing",
+            "Whatever it was, it's been here longer than the Castle's current purpose.",
+            tmpl, rank, role,
+            rankEnum: EnemyRankMultiplierSO.Rank.Standard,
+            roleEnum: EnemyRoleModifierSO.Role.Bruiser,
+            tag: "undead",
+            oHP:62, oMP:0, oATK:13, oMAG:2, oDEF:5, oRES:3, oSPD:5);
+
+        // ── Boss ──────────────────────────────────────────────────────────
+        CreateEnemyL2("the_jailer",       "The Jailer",
+            "Layer 2 boss. Controller/Tank. He was built here.",
+            tmpl, rank, role,
+            rankEnum: EnemyRankMultiplierSO.Rank.MajorBoss,
+            roleEnum: EnemyRoleModifierSO.Role.Tank,
+            tag: "male-construct",
+            oHP:220, oMP:28, oATK:14, oMAG:8, oDEF:16, oRES:10, oSPD:5);
+
+        Debug.Log("[CoreAssetGenerator] Layer 2 enemies created.");
+    }
+
+    /// <summary>Creates an EnemyDataSO in the Layer 2 folder.</summary>
+    private static void CreateEnemyL2(
+        string id, string displayName, string description,
+        EnemyLayerTemplateSO tmpl, EnemyRankMultiplierSO rank, EnemyRoleModifierSO role,
+        EnemyRankMultiplierSO.Rank rankEnum,
+        EnemyRoleModifierSO.Role  roleEnum,
+        string tag,
+        int oHP=0, int oMP=0, int oATK=0, int oMAG=0,
+        int oDEF=0, int oRES=0, int oSPD=0)
+    {
+        var so = GetOrCreate<EnemyDataSO>(ENEMIES_L2, id);
+        so.enemyId       = id;
+        so.displayName   = displayName;
+        so.description   = description;
+        so.tag           = tag;
+        so.layerTemplate = tmpl;
+        so.rankTable     = rank;
+        so.roleTable     = role;
+        so.layer         = 2;
+        so.rank          = rankEnum;
+        so.role          = roleEnum;
+        so.overrideHP    = oHP;
+        so.overrideMP    = oMP;
+        so.overrideATK   = oATK;
+        so.overrideMAG   = oMAG;
+        so.overrideDEF   = oDEF;
+        so.overrideRES   = oRES;
+        so.overrideSPD   = oSPD;
+        EditorUtility.SetDirty(so);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LAYER 2 ENEMY ABILITIES
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void GenerateLayer2EnemyAbilities()
+    {
+        // ── Dungeon Warden ────────────────────────────────────────────────
+        CreateAbility(ABILITIES_E2, "warden_strike", "Warden Strike",
+            "Dungeon Warden normal attack. Medium physical.",
+            type: CharacterAbilitySO.AbilityType.Physical,
+            power: PowerBand.Medium, mpCost: 0, hitChance: 90,
+            targetIsHeroine: true);
+
+        CreateAbility(ABILITIES_E2, "chain_throw", "Chain Throw",
+            "Dungeon Warden grapple attempt. 70% hit.",
+            type: CharacterAbilitySO.AbilityType.Grapple,
+            power: PowerBand.Medium, mpCost: 0, hitChance: 70,
+            isGrappleInitiator: true, targetIsHeroine: true);
+
+        // ── Pale Attendant ────────────────────────────────────────────────
+        CreateAbility(ABILITIES_E2, "pale_touch", "Pale Touch",
+            "Pale Attendant magic attack. Auto-hit.",
+            type: CharacterAbilitySO.AbilityType.Magic,
+            power: PowerBand.Low, mpCost: 0,
+            targetIsHeroine: true);
+
+        CreateAbility(ABILITIES_E2, "attendant_mending", "Attendant Mending",
+            "Pale Attendant ally heal. Heals 14 HP. Targets ally.",
+            type: CharacterAbilitySO.AbilityType.Healing,
+            power: PowerBand.Low, mpCost: 4,
+            baseHeal: 14, targetIsHeroine: false);
+
+        CreateAbility(ABILITIES_E2, "soothing_words", "Soothing Words",
+            "Pale Attendant Resolve attack. Patiently explains why you should stop resisting.",
+            type: CharacterAbilitySO.AbilityType.ResolveAttack,
+            power: PowerBand.Medium, mpCost: 5,
+            baseResolveDamage: 8, baseCorruptionGain: 2,
+            targetIsHeroine: true);
+
+        // ── Sealed Thing ──────────────────────────────────────────────────
+        CreateAbility(ABILITIES_E2, "thrashing_blow", "Thrashing Blow",
+            "Sealed Thing heavy physical. It has been waiting a long time.",
+            type: CharacterAbilitySO.AbilityType.Physical,
+            power: PowerBand.High, mpCost: 0, hitChance: 80,
+            targetIsHeroine: true);
+
+        CreateAbility(ABILITIES_E2, "desperate_grab", "Desperate Grab",
+            "Sealed Thing grapple. Low power, 65% hit.",
+            type: CharacterAbilitySO.AbilityType.Grapple,
+            power: PowerBand.Low, mpCost: 0, hitChance: 65,
+            isGrappleInitiator: true, targetIsHeroine: true);
+
+        // ── The Jailer (Boss) ─────────────────────────────────────────────
+        CreateAbility(ABILITIES_E2, "iron_admonishment", "Iron Admonishment",
+            "A restrained blow. He doesn't want to hurt you.",
+            type: CharacterAbilitySO.AbilityType.Physical,
+            power: PowerBand.Low, mpCost: 0, hitChance: 85,
+            statusId: "restrained", statusChance: 40,
+            targetIsHeroine: true);
+
+        CreateAbility(ABILITIES_E2, "gentle_hold", "Gentle Hold",
+            "His hands close carefully. He is trying not to break anything.",
+            type: CharacterAbilitySO.AbilityType.Grapple,
+            power: PowerBand.Medium, mpCost: 0, hitChance: 80,
+            isGrappleInitiator: true, targetIsHeroine: true);
+
+        CreateAbility(ABILITIES_E2, "weight_of_order", "Weight of Order",
+            "He explains, patiently, why this is necessary. The logic is impeccable and wrong.",
+            type: CharacterAbilitySO.AbilityType.ResolveAttack,
+            power: PowerBand.Medium, mpCost: 6,
+            baseResolveDamage: 12, baseCorruptionGain: 3,
+            targetIsHeroine: true);
+
+        // Phase 2 ability — CombatManager AI checks HP threshold before selecting this.
+        CreateAbility(ABILITIES_E2, "i_did_not_want_this", "I Did Not Want This",
+            "Phase 2. He stops holding back. His voice doesn't change.",
+            type: CharacterAbilitySO.AbilityType.Physical,
+            power: PowerBand.High, mpCost: 8, hitChance: 90,
+            baseResolveDamage: 8,
+            targetIsHeroine: true);
+
+        Debug.Log("[CoreAssetGenerator] Layer 2 enemy abilities created.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // ENCOUNTER POOL — Layer 2
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void GenerateLayer2EncounterPool()
+    {
+        var pool = GetOrCreate<EncounterPoolSO>(ENCOUNTERS, "EncounterPool_Layer2");
+
+        // Load enemy SOs
+        var warden      = LoadAsset<EnemyDataSO>(ENEMIES_L2, "dungeon_warden");
+        var attendant   = LoadAsset<EnemyDataSO>(ENEMIES_L2, "pale_attendant");
+        var sealedThing = LoadAsset<EnemyDataSO>(ENEMIES_L2, "sealed_thing");
+        var jailer      = LoadAsset<EnemyDataSO>(ENEMIES_L2, "the_jailer");
+
+        // Load ability SOs
+        var wardenStrike    = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "warden_strike");
+        var chainThrow      = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "chain_throw");
+        var paleTouch       = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "pale_touch");
+        var attMending      = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "attendant_mending");
+        var soothingWords   = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "soothing_words");
+        var thrashingBlow   = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "thrashing_blow");
+        var desperateGrab   = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "desperate_grab");
+        var ironAdmon       = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "iron_admonishment");
+        var gentleHold      = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "gentle_hold");
+        var weightOfOrder   = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "weight_of_order");
+        var didNotWant      = LoadAsset<CharacterAbilitySO>(ABILITIES_E2, "i_did_not_want_this");
+
+        // ── Standard Pool ─────────────────────────────────────────────────
+        pool.standardPool = new EncounterPoolSO.EnemyGroup[]
+        {
+            MakeGroup("1× Dungeon Warden", weight:10,
+                new[]{ warden },
+                new[]{ new[]{ wardenStrike, chainThrow } }),
+
+            MakeGroup("1× Pale Attendant", weight:8,
+                new[]{ attendant },
+                new[]{ new[]{ paleTouch, attMending, soothingWords } }),
+
+            MakeGroup("Dungeon Warden + Pale Attendant", weight:9,
+                new[]{ warden, attendant },
+                new[]{ new[]{ wardenStrike, chainThrow }, new[]{ paleTouch, attMending, soothingWords } }),
+
+            MakeGroup("1× Sealed Thing", weight:7,
+                new[]{ sealedThing },
+                new[]{ new[]{ thrashingBlow, desperateGrab } }),
+        };
+
+        // ── Elite Pool ────────────────────────────────────────────────────
+        pool.elitePool = new EncounterPoolSO.EnemyGroup[]
+        {
+            MakeGroup("Warden + Attendant + Sealed Thing", weight:10,
+                new[]{ warden, attendant, sealedThing },
+                new[]{ new[]{ wardenStrike, chainThrow }, new[]{ paleTouch, attMending, soothingWords }, new[]{ thrashingBlow, desperateGrab } }),
+
+            MakeGroup("2× Sealed Thing", weight:8,
+                new[]{ sealedThing, sealedThing },
+                new[]{ new[]{ thrashingBlow, desperateGrab }, new[]{ thrashingBlow, desperateGrab } }),
+        };
+
+        // ── Boss Pool ─────────────────────────────────────────────────────
+        pool.bossPool = new EncounterPoolSO.EnemyGroup[]
+        {
+            MakeGroup("The Jailer", weight:10,
+                new[]{ jailer },
+                new[]{ new[]{ ironAdmon, gentleHold, weightOfOrder, didNotWant } }),
+        };
+
+        EditorUtility.SetDirty(pool);
+        Debug.Log("[CoreAssetGenerator] Layer 2 encounter pool created.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LAYER GENERATION PROFILE — Layer 2
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void GenerateLayer2Profile()
+    {
+        var profile = GetOrCreate<LayerGenerationProfileSO>(LAYERS, "LayerProfile_Layer2");
+
+        profile.layerNumber        = 2;
+        profile.minNodes           = 7;
+        profile.maxNodes           = 10;
+        profile.startingPaths      = 1;   // single main corridor
+        profile.minDepth           = 3;
+        profile.minRoomsBeforeBoss = 3;
+
+        profile.weightBattle        = 30;
+        profile.weightElite         = 12;
+        profile.weightEvent         = 18;
+        profile.weightLoreDiscovery = 8;
+        profile.weightRiskReward    = 10;
+        profile.weightFalseRest     = 7;
+        profile.weightKeyMechanism  = 5;
+
+        var pool = LoadAsset<EncounterPoolSO>(ENCOUNTERS, "EncounterPool_Layer2");
+        if (pool != null) profile.encounterPool = pool;
+
+        EditorUtility.SetDirty(profile);
+        Debug.Log("[CoreAssetGenerator] Layer 2 profile created.");
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // LAYER 2 FOLDER SETUP
+    // ══════════════════════════════════════════════════════════════════════
+
+    private static void EnsureLayer2Folders()
+    {
+        string[] folders =
+        {
+            ENEMIES_L2,
+            ABILITIES_E2,
+        };
+
+        foreach (var folder in folders)
+        {
+            if (AssetDatabase.IsValidFolder(folder)) continue;
+            string[] parts = folder.Split('/');
+            string current = parts[0];
+            for (int i = 1; i < parts.Length; i++)
+            {
+                string next = $"{current}/{parts[i]}";
+                if (!AssetDatabase.IsValidFolder(next))
+                    AssetDatabase.CreateFolder(current, parts[i]);
+                current = next;
+            }
+        }
+    }
+
 }
 #endif
